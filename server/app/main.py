@@ -1,7 +1,10 @@
 from fastapi import FastAPI
+from app.core.database import engine, Base
+from app.models import Concert, Venue, Performer
 
-# De naam van deze variabele MOET 'app' zijn, 
-# omdat de Docker-configuratie zoekt naar app.main:app
+
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(title="Concert Monitor API")
 
 @app.get("/")
