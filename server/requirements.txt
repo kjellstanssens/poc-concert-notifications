@@ -10,3 +10,7 @@ uvicorn==0.42.0
 scrapling==0.4.2
 pyyaml==6.0.3
 pydantic==2.12.5
+
+# Testing
+pytest==8.3.4
+httpx==0.28.1
