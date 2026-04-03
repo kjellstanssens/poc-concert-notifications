@@ -9,6 +9,7 @@ class ConcertBase(BaseModel):
     date: datetime
     price: Optional[float] = None
     content_hash: Optional[str] = None
+    is_active: bool = True
 
 class ConcertCreate(ConcertBase):
     venue_id: int

@@ -3,6 +3,7 @@ from sqlalchemy import select, and_
 from datetime import datetime
 from app.models.concert import Concert
 from app.models.performer import Performer
+from app.models.venue import Venue  # Added Venue model import
 from app import schemas
 
 def get_concert_by_id(db: Session, concert_id: int):
@@ -60,10 +61,16 @@ def get_all_concerts(db: Session, skip: int = 0, limit: int = 100):
 def create_concert(db: Session, concert_in: schemas.ConcertCreate):
     """
     Convert Pydantic data to a dictionary (model_dump).
+    Validate venue existence.
     Retrieve Performer objects from the database based on performer_ids.
     Link performers to the Concert model relationship.
     Save and return the enriched object.
     """
+    # Defensive check for venue existence
+    venue = db.get(Venue, concert_in.venue_id)
+    if not venue:
+        raise ValueError(f"Venue with id {concert_in.venue_id} does not exist")
+
     # model_dump exclude performer_ids as they are handled manually for relationship
     obj_in_data = concert_in.model_dump(exclude={"performer_ids"})
     db_obj = Concert(**obj_in_data)
