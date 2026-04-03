@@ -12,6 +12,7 @@ class Concert(Base):
     venue_id = Column(Integer, ForeignKey("venues.id"), nullable=False)
 
     content_hash = Column(String, index=True, nullable=True)
+    is_active = Column(Integer, default=True, nullable=False) # Added is_active for soft delete
 
     venue = relationship("Venue", back_populates="concerts")
     performers = relationship("Performer", secondary=concert_performers, back_populates="concerts")
