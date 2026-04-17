@@ -12,12 +12,17 @@ from app.core.database import SessionLocal
 
 @pytest.fixture(scope="function")
 def db_session():
-    """Provides a transactional database session for each test."""
-    db = SessionLocal()
+    """Provides a transactional database session for each test that rolls back."""
+    connection = SessionLocal().get_bind().connect()
+    transaction = connection.begin()
+    db = Session(bind=connection)
+    
     try:
         yield db
     finally:
         db.close()
+        transaction.rollback()
+        connection.close()
 
 # --- Venue Service Tests ---
 
