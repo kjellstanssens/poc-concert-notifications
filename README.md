@@ -1,53 +1,38 @@
-# 🎫 POC Concert Notifications
+# 🎫 POC Concert Notifications (Monorepo)
 
-A scalable, high-performance notification system for concert events, built with **FastAPI**, **Celery**, **Redis**, and **PostgreSQL**. This project features a configuration-driven scraper engine with lifecycle management (change detection and cancellations).
+A scalable, distributed concert notification system.
 
----
+## 📂 Project Structure
 
-## 🛠️ Tech Stack
-- **Backend:** [FastAPI](https://fastapi.tiangolo.com/) (Python 3.12+)
-- **Task Queue:** [Celery](https://docs.celeryq.dev/) (Worker & Distributed tasks)
-- **Message Broker:** [Redis](https://redis.io/) (Port 6380)
-- **Monitoring:** [Flower](https://flower.readthedocs.io/) (Celery monitoring)
-- **ORM:** [SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/)
-- **Database:** [PostgreSQL 17](https://www.postgresql.org/)
-- **DB Admin:** [pgAdmin 4](https://www.pgadmin.org/)
-- **Infrastructure:** [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
-- **Scraping:** [Scrapling](https://github.com/v1a0/scrapling) (Stealth fetching & YAML rules)
+- **[server/](server/)**: FastAPI backend, Celery workers, and Scraper engine.
+- **[web-user/](web-user/)**: User-facing React application for managing subscriptions.
+- **[web-admin/](web-admin/)**: Admin dashboard for system monitoring (Planned).
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start (Full Stack)
 
-### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
-- [Git](https://git-scm.com/)
+Launch the entire infrastructure using Docker Compose from the root:
 
-### Environment Setup
-1. **Clone the repository:**
-   ```bash
-   git clone <repo-url>
-   cd poc-concert-notifications
-   ```
+```bash
+docker compose up --build
+```
 
-2. **Build and Start Containers:**
-   Launch the full scalable infrastructure (API, DB, Redis, Worker, Flower):
-   ```bash
-   cd server/docker
-   docker compose up --build -d
-   ```
-
-3. **Stop & Cleanup:**
-   To shut down services and remove volumes:
-   ```bash
-   docker compose down -v
-   ```
+### Services Summary
+- **API**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Flower (Celery Monitor)**: [http://localhost:5555](http://localhost:5555)
+- **Maildev (Email Inbox)**: [http://localhost:1080](http://localhost:1080)
+- **pgAdmin**: [http://localhost:5050](http://localhost:5050)
 
 ---
 
-## 📊 Dashboards & Interfaces
+## 🛠️ Development
 
-Once the containers are running, you can access the following services:
+### Server
+See [server/README.md](server/README.md) for backend-specific details.
+
+### Web User
+Currently in development.
 
 | Service | URL | Note |
 | :--- | :--- | :--- |
