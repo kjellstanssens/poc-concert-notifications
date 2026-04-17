@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, and_
 from datetime import datetime
@@ -43,11 +44,45 @@ def soft_delete_concert(db: Session, concert_id: int) -> bool:
     db.commit()
     return True
 
-def get_concert_by_hash(db: Session, content_hash: str):
-    """Perform an idempotency check for the scraper to prevent duplicate concerts."""
+def get_concert_by_url(db: Session, url: str):
+    """Retrieve a concert by its canonical URL (external_id)."""
     return db.execute(
-        select(Concert).where(Concert.content_hash == content_hash)
+        select(Concert).where(Concert.url == url)
     ).scalar_one_or_none()
+
+def update_concert(db: Session, concert: Concert, concert_update: schemas.ConcertCreate):
+    """Update an existing concert's fields and performers."""
+    concert.title = concert_update.title
+    concert.date = concert_update.date
+    concert.content_hash = concert_update.content_hash
+    concert.status = "active"
+    
+    # Update performers
+    if concert_update.performer_ids:
+        performers = db.execute(
+            select(Performer).where(Performer.id.in_(concert_update.performer_ids))
+        ).scalars().all()
+        concert.performers = performers
+    
+    db.add(concert)
+    db.commit()
+    db.refresh(concert)
+    return concert
+
+def mark_venue_concerts_removed(db: Session, venue_id: int, last_scraped_at: datetime):
+    """Mark concerts for a venue as 'cancelled' if they weren't seen in the latest scrape."""
+    db.execute(
+        sa.update(Concert)
+        .where(
+            sa.and_(
+                Concert.venue_id == venue_id,
+                Concert.last_scraped_at < last_scraped_at,
+                Concert.status == "active"
+            )
+        )
+        .values(status="cancelled")
+    )
+    db.commit()
 
 def get_all_concerts(db: Session, skip: int = 0, limit: int = 100):
     """List concerts with joinedload for all associated relationships."""

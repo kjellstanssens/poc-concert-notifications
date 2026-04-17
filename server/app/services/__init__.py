@@ -14,7 +14,9 @@ from .concert import (
     get_concert_by_id,
     get_active_concerts,
     soft_delete_concert,
-    get_concert_by_hash,
+    get_concert_by_url,
+    update_concert,
+    mark_venue_concerts_removed,
     get_all_concerts,
     create_concert,
 )
