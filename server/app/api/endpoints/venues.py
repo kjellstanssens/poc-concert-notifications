@@ -26,3 +26,19 @@ def read_venue(venue_id: int, db: Session = Depends(get_db)):
     if not db_venue:
         raise HTTPException(status_code=404, detail="Venue not found")
     return db_venue
+
+@router.patch("/{venue_id}", response_model=schemas.Venue)
+def update_venue(venue_id: int, venue_in: schemas.VenueUpdate, db: Session = Depends(get_db)):
+    """Update a specific venue."""
+    db_venue = services.update_venue(db, venue_id=venue_id, venue_in=venue_in)
+    if not db_venue:
+        raise HTTPException(status_code=404, detail="Venue not found")
+    return db_venue
+
+@router.delete("/{venue_id}")
+def delete_venue(venue_id: int, db: Session = Depends(get_db)):
+    """Delete a specific venue."""
+    success = services.delete_venue(db, venue_id=venue_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Venue not found")
+    return {"success": True}

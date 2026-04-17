@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, update
 from app.models.venue import Venue
 from app import schemas
 
@@ -20,8 +20,32 @@ def get_all_venues(db: Session):
 def create_venue(db: Session, venue_in: schemas.VenueCreate):
     """Create and commit a new Venue using model_dump()."""
     # model_dump(mode="json") ensures types like HttpUrl are converted to strings
-    db_obj = Venue(**venue_in.model_dump(mode="json"))
+    db_obj = Venue(**venue_in.model_dump(exclude_unset=True))
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
     return db_obj
+
+def update_venue(db: Session, venue_id: int, venue_in: schemas.VenueUpdate):
+    """Update a venue's fields."""
+    db_venue = get_venue_by_id(db, venue_id)
+    if not db_venue:
+        return None
+    
+    update_data = venue_in.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_venue, key, value)
+    
+    db.commit()
+    db.refresh(db_venue)
+    return db_venue
+
+def delete_venue(db: Session, venue_id: int):
+    """Delete a venue."""
+    db_venue = get_venue_by_id(db, venue_id)
+    if not db_venue:
+        return False
+    db.delete(db_venue)
+    db.commit()
+    return True
+

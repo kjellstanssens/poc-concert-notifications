@@ -25,17 +25,20 @@ export default function AdminDashboard() {
   const fetchConfig = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/config');
-      const data = await response.json();
-      if (data.content) {
-        setConfigContent(data.content);
-        try {
-          const parsed = jsyaml.load(data.content) as any;
-          setParsedConfig(parsed || { venues: [] });
-        } catch (e) {}
-      }
+      // Step 1: Fetch all venues from the DB
+      const response = await fetch('http://localhost:8000/api/venues');
+      const venues = await response.json();
+      
+      // Step 2: Update the local state
+      setParsedConfig({ venues });
+      
+      // Step 3: Keep the code editor in sync (optional but helpful)
+      try {
+        const yaml = jsyaml.dump({ venues }, { indent: 2, noRefs: true });
+        setConfigContent(yaml);
+      } catch (e) {}
     } catch (err) {
-      setMessage({ text: 'Failed to load configuration.', type: 'error' });
+      setMessage({ text: 'Failed to connect to backend. Is the server running?', type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -54,38 +57,40 @@ export default function AdminDashboard() {
   };
 
   const handleSave = async () => {
-    let contentToSave = configContent;
-    
-    if (view === 'visual') {
-      const synced = syncToYaml(parsedConfig);
-      if (!synced) return;
-      contentToSave = synced;
-    } else {
-      try {
-        jsyaml.load(configContent);
-      } catch (e: any) {
-        setMessage({ text: 'Cannot save invalid YAML.', type: 'error' });
-        return;
-      }
-    }
-
     setIsSaving(true);
     setMessage(null);
     try {
-      const response = await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: contentToSave }),
+      // Loop through all venues and update/create them in DB
+      const savePromises = parsedConfig.venues.map(async (v: any) => {
+        const payload = {
+          name: v.venue_name || v.name,
+          website_url: v.start_url || v.website_url,
+          scraper_config: v.selectors ? { selectors: v.selectors, performer_strategy: v.performer_strategy, date_parsing: v.date_parsing } : v.scraper_config,
+          is_active: v.is_active !== undefined ? v.is_active : true
+        };
+
+        if (v.id) {
+          // Update
+          return fetch(`http://localhost:8000/api/venues/${v.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          // Create
+          return fetch('http://localhost:8000/api/venues', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
       });
-      const data = await response.json();
-      if (data.success) {
-        setMessage({ text: 'Configuration saved successfully!', type: 'success' });
-        if (view === 'code') fetchConfig(); 
-      } else {
-        throw new Error(data.error);
-      }
+
+      await Promise.all(savePromises);
+      setMessage({ text: 'Nodes published to database successfully!', type: 'success' });
+      fetchConfig(); // Refresh data
     } catch (err: any) {
-      setMessage({ text: err.message || 'Failed to save configuration.', type: 'error' });
+      setMessage({ text: err.message || 'Failed to save to database.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -93,12 +98,25 @@ export default function AdminDashboard() {
 
   const updateVenue = (index: number, field: string, value: any) => {
     const newVenues = [...parsedConfig.venues];
+    const venue = newVenues[index];
     
+    // Normalize fields for the UI
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
-      newVenues[index][parent] = { ...newVenues[index][parent], [child]: value };
+      if (parent === 'selectors') {
+          if (!venue.selectors && venue.scraper_config?.selectors) venue.selectors = venue.scraper_config.selectors;
+          venue.selectors = { ...venue.selectors, [child]: value };
+      } else if (parent === 'performer_strategy') {
+          if (!venue.performer_strategy && venue.scraper_config?.performer_strategy) venue.performer_strategy = venue.scraper_config.performer_strategy;
+          venue.performer_strategy = { ...venue.performer_strategy, [child]: value };
+      } else if (parent === 'date_parsing') {
+          if (!venue.date_parsing && venue.scraper_config?.date_parsing) venue.date_parsing = venue.scraper_config.date_parsing;
+          venue.date_parsing = { ...venue.date_parsing, [child]: value };
+      }
     } else {
-      newVenues[index][field] = value;
+      if (field === 'venue_name') venue.name = value;
+      else if (field === 'start_url') venue.website_url = value;
+      else venue[field] = value;
     }
     
     const newConfig = { ...parsedConfig, venues: newVenues };
@@ -108,16 +126,12 @@ export default function AdminDashboard() {
 
   const addVenue = () => {
     const newVenue = {
-      venue_name: "New Venue",
-      start_url: "https://",
-      selectors: {
-        card: "",
-        title: "",
-        date: "",
-        url: ""
-      },
-      performer_strategy: {
-        split_by: [" + ", " / "]
+      name: "New Venue",
+      website_url: "https://",
+      scraper_config: {
+        selectors: { card: "", title: "", date: "", url: "" },
+        performer_strategy: { split_by: [" + ", " / "] },
+        date_parsing: { format: "" }
       }
     };
     const newConfig = { ...parsedConfig, venues: [...(parsedConfig.venues || []), newVenue] };
@@ -125,7 +139,14 @@ export default function AdminDashboard() {
     syncToYaml(newConfig);
   };
 
-  const removeVenue = (index: number) => {
+  const removeVenue = async (index: number) => {
+    const venue = parsedConfig.venues[index];
+    if (venue.id) {
+        if (!confirm('Are you sure you want to delete this venue from the database?')) return;
+        try {
+            await fetch(`http://localhost:8000/api/venues/${venue.id}`, { method: 'DELETE' });
+        } catch (e) {}
+    }
     const newVenues = parsedConfig.venues.filter((_: any, i: number) => i !== index);
     const newConfig = { ...parsedConfig, venues: newVenues };
     setParsedConfig(newConfig);
@@ -243,7 +264,7 @@ export default function AdminDashboard() {
                                         <Layout className="w-4 h-4 text-indigo-400" />
                                     </div>
                                     <input 
-                                        value={venue.venue_name}
+                                        value={venue.venue_name || venue.name || ""}
                                         onChange={(e) => updateVenue(idx, 'venue_name', e.target.value)}
                                         className="bg-transparent font-black text-slate-800 outline-none text-lg focus:text-indigo-600 transition-colors"
                                         placeholder="Venue Name"
@@ -264,7 +285,7 @@ export default function AdminDashboard() {
                                         <div className="relative group">
                                             <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                                             <input 
-                                                value={venue.start_url}
+                                                value={venue.start_url || venue.website_url || ""}
                                                 onChange={(e) => updateVenue(idx, 'start_url', e.target.value)}
                                                 className="w-full bg-slate-50 border-2 border-slate-100 focus:border-indigo-100 focus:bg-white rounded-2xl pl-12 pr-6 py-3.5 text-slate-600 font-mono text-sm transition-all focus:ring-0 shadow-inner"
                                                 placeholder="https://example.com/agenda"
@@ -277,12 +298,13 @@ export default function AdminDashboard() {
                                            <div>
                                               <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter block mb-2">Performer Strategy</span>
                                               <div className="flex flex-wrap gap-2 mb-1">
-                                                  {venue.performer_strategy?.split_by?.map((sep: string, sIdx: number) => (
+                                                  {(venue.performer_strategy?.split_by || venue.scraper_config?.performer_strategy?.split_by || []).map((sep: string, sIdx: number) => (
                                                       <div key={sIdx} className="group relative flex items-center bg-white border border-slate-200 rounded-lg pl-3 pr-1 py-1 text-slate-700 shadow-sm transition-all hover:border-indigo-300">
                                                           <span className="font-mono text-[10px] font-bold">"{sep}"</span>
                                                           <button 
                                                             onClick={() => {
-                                                              const newSeps = venue.performer_strategy.split_by.filter((_: any, i: number) => i !== sIdx);
+                                                              const current = (venue.performer_strategy?.split_by || venue.scraper_config?.performer_strategy?.split_by || []);
+                                                              const newSeps = current.filter((_: any, i: number) => i !== sIdx);
                                                               updateVenue(idx, 'performer_strategy.split_by', newSeps);
                                                             }}
                                                             className="ml-2 p-1 text-slate-300 hover:text-rose-500 rounded-md transition-colors"
@@ -293,8 +315,9 @@ export default function AdminDashboard() {
                                                   ))}
                                                   <button 
                                                     onClick={() => {
+                                                      const current = (venue.performer_strategy?.split_by || venue.scraper_config?.performer_strategy?.split_by || []);
                                                       const s = prompt("Enter separator (e.g. ' & ')");
-                                                      if (s) updateVenue(idx, 'performer_strategy.split_by', [...(venue.performer_strategy?.split_by || []), s]);
+                                                      if (s) updateVenue(idx, 'performer_strategy.split_by', [...current, s]);
                                                     }}
                                                     className="bg-indigo-600 text-white shadow-indigo-100 shadow-md border border-indigo-700 rounded-lg px-3 py-1 text-[10px] font-bold hover:bg-indigo-700 transition-colors"
                                                   >
@@ -306,7 +329,7 @@ export default function AdminDashboard() {
                                            <div className="pt-4 border-t border-slate-200/60">
                                               <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter block mb-2">Date Masking</span>
                                               <input 
-                                                value={venue.date_parsing?.format || ''}
+                                                value={venue.date_parsing?.format || venue.scraper_config?.date_parsing?.format || ''}
                                                 onChange={(e) => updateVenue(idx, 'date_parsing.format', e.target.value)}
                                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-700 placeholder:text-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 outline-none transition-all shadow-sm"
                                                 placeholder="e.g. %d %b %Y"
@@ -344,7 +367,7 @@ export default function AdminDashboard() {
                                                 <div key={item.field} className="flex flex-col gap-1.5">
                                                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">{item.label}</span>
                                                     <input 
-                                                        value={venue.selectors?.[item.field]}
+                                                        value={venue.selectors?.[item.field] || venue.scraper_config?.selectors?.[item.field] || ""}
                                                         onChange={(e) => updateVenue(idx, `selectors.${item.field}`, e.target.value)}
                                                         className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2 text-[11px] font-mono text-indigo-300 placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-inner"
                                                         placeholder={item.placeholder}
