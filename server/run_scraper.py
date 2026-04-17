@@ -12,6 +12,7 @@ from app.core.database import SessionLocal
 from app.services import venue as venue_service
 from app.services import performer as performer_service
 from app.services import concert as concert_service
+from app.services.concert import process_scraped_items
 from app import schemas
 from scraper.engine import ScraperEngine
 from scraper.config_models import VenueScraperConfig
@@ -25,7 +26,6 @@ logger = logging.getLogger("scraper_runner")
 def run():
     db = SessionLocal()
     engine = ScraperEngine()
-    run_time = datetime.utcnow()
     
     config_path = Path(__file__).parent / "configs" / "scraper_config.yaml"
     if not config_path.exists():
@@ -47,54 +47,20 @@ def run():
             results = engine.scrape_venue(config)
             logger.info(f"Scraped {len(results)} potential events from {config.venue_name}")
             
-            new_count = 0
-            update_count = 0
-            for res in results:
-                # 1. Resolve Performers
-                performer_ids = []
-                for p_name in res['performers']:
-                    perf = performer_service.get_or_create_performer(
-                        db, schemas.PerformerCreate(name=p_name.strip())
-                    )
-                    performer_ids.append(perf.id)
+            # Dispatch to Celery Worker for parallel processing
+            if results:
+                # Convert dates to ISO strings for JSON serialization
+                serializable_results = []
+                for res in results:
+                    item = res.copy()
+                    if isinstance(item['date'], datetime):
+                        item['date'] = item['date'].isoformat()
+                    serializable_results.append(item)
                 
-                # 2. Check for existing concert by URL (Stable Identity)
-                existing = concert_service.get_concert_by_url(db, res['url'])
-                
-                concert_in = schemas.ConcertCreate(
-                    title=res['title'],
-                    date=res['date'],
-                    content_hash=res['content_hash'],
-                    venue_id=venue.id,
-                    performer_ids=performer_ids,
-                    url=res['url'],
-                    status="active",
-                    last_scraped_at=run_time
-                )
-
-                if existing:
-                    # Check if content changed
-                    if existing.content_hash != res['content_hash']:
-                        logger.info(f"Change detected for {res['title']}. Updating.")
-                        concert_service.update_concert(db, existing, concert_in)
-                        update_count += 1
-                    else:
-                        # Just update the heartbeat
-                        existing.last_scraped_at = run_time
-                        db.commit()
-                    continue
-
-                # 3. Create Concert
-                try:
-                    concert_service.create_concert(db, concert_in)
-                    new_count += 1
-                except Exception as e:
-                    logger.error(f"Failed to save concert {res['title']}: {e}")
-
-            logger.info(f"Venue {config.venue_name}: {new_count} new, {update_count} updated.")
-            
-            # 4. Detect removals (Cancellations)
-            concert_service.mark_venue_concerts_removed(db, venue.id, run_time)
+                logger.info(f"Dispatching task for {config.venue_name}...")
+                process_scraped_items.delay(venue.id, serializable_results)
+            else:
+                logger.info(f"No results for {config.venue_name}")
 
         except Exception as e:
             logger.error(f"Error processing venue {v_conf.get('venue_name', 'Unknown')}: {e}")

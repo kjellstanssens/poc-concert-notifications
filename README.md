@@ -1,16 +1,19 @@
 # 🎫 POC Concert Notifications
 
-A high-performance notification system for concert events, built with **FastAPI**, **SQLAlchemy 2.0**, and **PostgreSQL**. This project streamlines the process of scraping, storing, and notifying users about upcoming concerts across various venues.
+A scalable, high-performance notification system for concert events, built with **FastAPI**, **Celery**, **Redis**, and **PostgreSQL**. This project features a configuration-driven scraper engine with lifecycle management (change detection and cancellations).
 
 ---
 
 ## 🛠️ Tech Stack
 - **Backend:** [FastAPI](https://fastapi.tiangolo.com/) (Python 3.12+)
-- **ORM:** [SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/) (Postgres driver: `psycopg2-binary`)
-- **Database:** [PostgreSQL](https://www.postgresql.org/)
+- **Task Queue:** [Celery](https://docs.celeryq.dev/) (Worker & Distributed tasks)
+- **Message Broker:** [Redis](https://redis.io/) (Port 6380)
+- **Monitoring:** [Flower](https://flower.readthedocs.io/) (Celery monitoring)
+- **ORM:** [SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/)
+- **Database:** [PostgreSQL 17](https://www.postgresql.org/)
+- **DB Admin:** [pgAdmin 4](https://www.pgadmin.org/)
 - **Infrastructure:** [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
-- **Migrations:** [Alembic](https://alembic.sqlalchemy.org/)
-- **Testing:** [Pytest](https://docs.pytest.org/)
+- **Scraping:** [Scrapling](https://github.com/v1a0/scrapling) (Stealth fetching & YAML rules)
 
 ---
 
@@ -28,16 +31,47 @@ A high-performance notification system for concert events, built with **FastAPI*
    ```
 
 2. **Build and Start Containers:**
-   Launch the API and Database in one command:
+   Launch the full scalable infrastructure (API, DB, Redis, Worker, Flower):
    ```bash
-   docker compose -f docker/docker-compose.yml up --build
+   cd server/docker
+   docker compose up --build -d
    ```
 
 3. **Stop & Cleanup:**
    To shut down services and remove volumes:
    ```bash
-   docker compose -f docker/docker-compose.yml down -v
+   docker compose down -v
    ```
+
+---
+
+## 📊 Dashboards & Interfaces
+
+Once the containers are running, you can access the following services:
+
+| Service | URL | Note |
+| :--- | :--- | :--- |
+| **FastAPI Swagger UI** | [http://localhost:8000/docs](http://localhost:8000/docs) | API Documentation & Testing |
+| **Flower (Celery)** | [http://localhost:5555](http://localhost:5555) | Monitor background tasks & workers |
+| **pgAdmin 4** | [http://localhost:5050](http://localhost:5050) | `admin@admin.com` / `admin` |
+| **Redis** | `localhost:6380` | External access port |
+
+---
+
+## 🕷️ Scraper Operations
+
+The scraper is configuration-driven via `server/configs/scraper_config.yaml`.
+
+### Run Scraper (Parallelized)
+Trigger a full scrape of all configured venues. This script dispatches items to Celery workers for parallel processing:
+```bash
+docker exec -it concert_api python run_scraper.py
+```
+
+### Lifecycle Management
+- **New**: Concerts added to DB with an `active` status.
+- **Updated**: If the `content_hash` changes (e.g., date rescheduled), the record is updated.
+- **Cancelled**: If a concert is no longer present in the source, it is marked as `cancelled`.
 
 ---
 

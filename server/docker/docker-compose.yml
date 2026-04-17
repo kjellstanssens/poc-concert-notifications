@@ -33,6 +33,38 @@ services:
       db :
         condition: service_healthy
 
+  redis:
+    image: redis:7-alpine
+    container_name: concert_redis
+    ports:
+      - "6380:6379"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: concert_worker
+    volumes:
+      - ..:/app
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/poc-concert-notifications
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    command: celery -A app.core.celery_app worker --loglevel=info
+    depends_on:
+      - db
+      - redis
+
+  flower:
+    image: mher/flower
+    container_name: concert_flower
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: concert_pgadmin

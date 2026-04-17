@@ -2,10 +2,71 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, and_
 from datetime import datetime
+from app.core.celery_app import celery_app
+from app.core.database import SessionLocal
 from app.models.concert import Concert
 from app.models.performer import Performer
 from app.models.venue import Venue  # Added Venue model import
 from app import schemas
+
+@celery_app.task(name="app.services.concert.process_scraped_items")
+def process_scraped_items(venue_id: int, items: list):
+    """
+    Celery task to process a list of scraped items for a specific venue.
+    This replaces the sequential loop in run_scraper.py.
+    """
+    db = SessionLocal()
+    try:
+        new_count = 0
+        updated_count = 0
+        now = datetime.now()
+
+        for item in items:
+            # Check if exists
+            db_concert = get_concert_by_url(db, item["url"])
+            
+            if db_concert:
+                # Potential update
+                if db_concert.content_hash != item["content_hash"]:
+                    # In a real app, you'd resolve performer_ids from names here
+                    # For simplicity, we just update the core metadata
+                    db_concert.title = item["title"]
+                    db_concert.date = item["date"]
+                    db_concert.content_hash = item["content_hash"]
+                    db_concert.status = "active"
+                    db_concert.last_scraped_at = now
+                    updated_count += 1
+                else:
+                    # Just update heartbeat
+                    db_concert.last_scraped_at = now
+            else:
+                # Create new
+                # In a real app, resolve venue/performers
+                # This is a simplified version for the POC demo
+                new_concert = Concert(
+                    title=item["title"],
+                    url=item["url"],
+                    date=item["date"],
+                    venue_id=venue_id,
+                    content_hash=item["content_hash"],
+                    status="active",
+                    last_scraped_at=now
+                )
+                db.add(new_concert)
+                new_count += 1
+        
+        db.commit()
+        # Mark missing ones as cancelled
+        mark_venue_concerts_removed(db, venue_id, now)
+        
+        return {
+            "venue_id": venue_id,
+            "new": new_count,
+            "updated": updated_count,
+            "processed_at": now.isoformat()
+        }
+    finally:
+        db.close()
 
 def get_concert_by_id(db: Session, concert_id: int):
     """Retrieve a concert by ID, including venue and performers using joinedload."""
