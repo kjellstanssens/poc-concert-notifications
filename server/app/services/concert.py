@@ -8,6 +8,7 @@ from app.models.concert import Concert
 from app.models.performer import Performer
 from app.models.venue import Venue  # Added Venue model import
 from app import schemas
+from app.services.matcher import queue_notifications_for_concert
 
 @celery_app.task(name="app.services.concert.process_scraped_items")
 def process_scraped_items(venue_id: int, items: list):
@@ -36,6 +37,8 @@ def process_scraped_items(venue_id: int, items: list):
                     db_concert.status = "active"
                     db_concert.last_scraped_at = now
                     updated_count += 1
+                    db.flush() # Ensure ID is available
+                    queue_notifications_for_concert(db, db_concert.id, "updated")
                 else:
                     # Just update heartbeat
                     db_concert.last_scraped_at = now
@@ -53,6 +56,8 @@ def process_scraped_items(venue_id: int, items: list):
                     last_scraped_at=now
                 )
                 db.add(new_concert)
+                db.flush() # Get ID
+                queue_notifications_for_concert(db, new_concert.id, "new")
                 new_count += 1
         
         db.commit()
