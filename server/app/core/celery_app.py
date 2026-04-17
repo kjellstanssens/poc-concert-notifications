@@ -9,8 +9,18 @@ celery_app = Celery(
     "concert_tasks",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["app.services.concert"]
+    include=[
+        "app.services.concert",
+        "app.services.matcher"
+    ]
 )
+
+celery_app.conf.beat_schedule = {
+    "send-daily-digests": {
+        "task": "app.services.matcher.process_daily_digests",
+        "schedule": 86400.0, # Every 24 hours
+    },
+}
 
 celery_app.conf.update(
     task_serializer="json",

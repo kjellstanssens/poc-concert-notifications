@@ -29,6 +29,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/poc-concert-notifications
+      SMTP_HOST: maildev
+      SMTP_PORT: 1025
     depends_on:
       db :
         condition: service_healthy
@@ -50,10 +52,35 @@ services:
       DATABASE_URL: postgresql://user:password@db:5432/poc-concert-notifications
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SMTP_HOST: maildev
+      SMTP_PORT: 1025
     command: celery -A app.core.celery_app worker --loglevel=info
     depends_on:
       - db
       - redis
+
+  beat:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: concert_beat
+    command: celery -A app.core.celery_app beat --loglevel=info
+    volumes:
+      - ..:/app
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/poc-concert-notifications
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - redis
+      - db
+
+  maildev:
+    image: maildev/maildev
+    container_name: concert_maildev
+    ports:
+      - "1080:1080"
+      - "1025:1025"
 
   flower:
     image: mher/flower
