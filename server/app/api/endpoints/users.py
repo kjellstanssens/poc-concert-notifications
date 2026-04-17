@@ -1,0 +1,34 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from typing import List
+from app.core.database import SessionLocal
+from app.models.user import User
+from app import schemas
+
+router = APIRouter()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@router.post("/", response_model=schemas.User)
+def get_or_create_user(email: str, db: Session = Depends(get_db)):
+    """Simple endpoint to identify/create a user by email."""
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if not user:
+        user = User(email=email)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
+@router.get("/{email}", response_model=schemas.User)
+def get_user(email: str, db: Session = Depends(get_db)):
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user

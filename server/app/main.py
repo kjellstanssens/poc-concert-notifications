@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine, Base
 from app.models import Concert, Venue, Performer
 from app.api import api_router
@@ -7,6 +8,15 @@ from app.api import api_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Concert Monitor API")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify the frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include all endpoint routers
 app.include_router(api_router, prefix="/api/v1")
