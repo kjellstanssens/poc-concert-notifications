@@ -1,5 +1,6 @@
 import logging
 import urllib.robotparser
+import hashlib
 from typing import List, Dict, Any
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
@@ -82,12 +83,18 @@ class ScraperEngine:
                 # Performers
                 performers = self._split_performers(title, config.performer_strategy)
                 
+                # Content Hash (Fingerprint)
+                # We hash title, date, performers to detect changes
+                content_str = f"{title}|{dt.isoformat()}|{sorted(performers)}"
+                content_hash = hashlib.md5(content_str.encode()).hexdigest()
+
                 scraped_data.append({
                     "title": title,
                     "date": dt,
                     "url": full_url,
                     "performers": performers,
-                    "venue_name": config.venue_name
+                    "venue_name": config.venue_name,
+                    "content_hash": content_hash
                 })
             except Exception as e:
                 logger.error(f"Error parsing card in {config.venue_name}: {e}")
