@@ -19,7 +19,8 @@ def get_all_venues(db: Session):
 
 def create_venue(db: Session, venue_in: schemas.VenueCreate):
     """Create and commit a new Venue using model_dump()."""
-    db_obj = Venue(**venue_in.model_dump())
+    # model_dump(mode="json") ensures types like HttpUrl are converted to strings
+    db_obj = Venue(**venue_in.model_dump(mode="json"))
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)

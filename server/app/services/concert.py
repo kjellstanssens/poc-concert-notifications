@@ -12,7 +12,7 @@ def get_concert_by_id(db: Session, concert_id: int):
         select(Concert)
         .options(joinedload(Concert.venue), joinedload(Concert.performers))
         .where(Concert.id == concert_id)
-    ).scalar_one_or_none()
+    ).unique().scalar_one_or_none()
 
 def get_active_concerts(db: Session, skip: int = 0, limit: int = 100):
     """
@@ -71,8 +71,8 @@ def create_concert(db: Session, concert_in: schemas.ConcertCreate):
     if not venue:
         raise ValueError(f"Venue with id {concert_in.venue_id} does not exist")
 
-    # model_dump exclude performer_ids as they are handled manually for relationship
-    obj_in_data = concert_in.model_dump(exclude={"performer_ids"})
+    # model_dump(mode="json") handles datetime/url conversion for SQLAlchemy
+    obj_in_data = concert_in.model_dump(exclude={"performer_ids"}, mode="json")
     db_obj = Concert(**obj_in_data)
     
     if concert_in.performer_ids:
