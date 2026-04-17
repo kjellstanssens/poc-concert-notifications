@@ -13,6 +13,7 @@ playwright==1.50.0
 browserforge==1.2.4
 pyyaml==6.0.3
 pydantic==2.12.5
+email-validator==2.3.0
 alembic==1.15.1
 
 # Background Processing

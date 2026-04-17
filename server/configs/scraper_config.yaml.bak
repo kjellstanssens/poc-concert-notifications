@@ -8,7 +8,7 @@ venues:
       url: a
     date_parsing:
       type: format
-      format: '%a %d %b %d'
+      format: '%a %d %b %y'
     performer_strategy:
       split_by:
         - ' + '
@@ -25,6 +25,17 @@ venues:
       type: format
       format: '%Y-%m-%d'
       attr: datetime
+    performer_strategy:
+      split_by:
+        - ' + '
+        - ' / '
+  - venue_name: New Venue
+    start_url: https://
+    selectors:
+      card: ''
+      title: ''
+      date: ''
+      url: ''
     performer_strategy:
       split_by:
         - ' + '
