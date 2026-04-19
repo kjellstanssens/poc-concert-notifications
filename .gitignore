@@ -131,3 +131,6 @@ __marimo__/
 
 # Temp brainstorm files
 /tmp/*
+# Databases
+server/data/*.db
+server/data/*.sqlite
