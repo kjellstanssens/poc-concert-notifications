@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiService, Performer, Venue, User } from '@/lib/api';
-import { UserIcon, MapPin, Music, Bell, Check, Trash2, Loader2, ArrowRight } from 'lucide-react';
+import { UserIcon, MapPin, Music, Bell, Check, Trash2, Loader2, ArrowRight, Sparkles } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Link from 'next/link';
@@ -110,171 +110,246 @@ export default function Home() {
 
   if (!user) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-          <div className="text-center mb-8">
-            <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bell className="w-8 h-8 text-indigo-600" />
+      <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#f8fafc] bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
+        <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] p-10 border border-slate-100 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50" />
+          
+          <div className="text-center mb-10 relative">
+            <div className="bg-indigo-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-100 rotate-3 transition-transform hover:rotate-0">
+              <Bell className="w-10 h-10 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Concert Tracker</h1>
-            <p className="text-sm text-gray-500 mt-2">Enter your email to manage your notifications</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Concert Tracker</h1>
+            <p className="text-slate-500 font-medium mt-3">Be the first to know when your favorite artists announce a show.</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="relative">
-              <UserIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-              <input
-                type="email"
-                placeholder="you@example.com"
-                required
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-black"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+          <form onSubmit={handleLogin} className="space-y-6 relative">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Email Address</label>
+              <div className="relative group">
+                <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <input
+                  type="email"
+                  placeholder="name@example.com"
+                  required
+                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:bg-white transition-all outline-none text-slate-900 font-medium"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && (
+              <p className="text-rose-500 text-xs font-bold bg-rose-50 p-3 rounded-xl border border-rose-100 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+                {error}
+              </p>
+            )}
             <button
               disabled={loading}
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 disabled:bg-slate-300"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Get Started'}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                <>
+                  Access My Tracker
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
             </button>
           </form>
+
+          <p className="text-center mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest">
+            POC Stage v1.0
+          </p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        <header className="flex items-center justify-between mb-8 pb-4 border-b">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Bell className="w-6 h-6 text-indigo-600" />
-              Notifications Manager
-            </h1>
-            <p className="text-gray-500 text-sm">Follow artists and venues to receive email alerts</p>
+    <main className="min-h-screen bg-[#f8fafc] selection:bg-indigo-100 selection:text-indigo-700">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-5">
+            <div className="bg-indigo-600 p-4 rounded-2xl shadow-lg shadow-indigo-100">
+              <Bell className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">
+                Notifications Manager
+              </h1>
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 flex items-center gap-2">
+                Active Session: <span className="text-indigo-600">{user.email}</span>
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <Link 
                 href="/discover" 
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-100 active:scale-95"
+                className="flex items-center gap-3 px-8 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl font-black transition-all shadow-xl active:scale-95"
             >
-                Live Discovery <ArrowRight className="w-4 h-4" />
+                Live Discovery <ArrowRight className="w-5 h-5" />
             </Link>
             <button 
                 onClick={() => {
                     localStorage.removeItem('concert_user_email');
                     setUser(null);
                 }}
-                className="text-sm text-gray-400 hover:text-red-500 transition-colors"
+                className="p-4 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all font-bold text-sm"
+                title="Sign Out"
             >
                 Logout
             </button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Performers Section */}
-          <section>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
-              <Music className="w-5 h-5 text-purple-600" />
-              Follow Performers
-            </h2>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-                {performers.map(p => (
-                  <div key={p.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <span className="font-medium text-gray-700">{p.name}</span>
-                    <button
-                      onClick={() => handleSubscribe('performer', p.id)}
-                      disabled={isSubscribed('performer', p.id)}
-                      className={cn(
-                        "text-sm px-4 py-1.5 rounded-full border transition-all",
-                        isSubscribed('performer', p.id)
-                          ? "bg-green-50 text-green-600 border-green-200"
-                          : "bg-white text-indigo-600 border-indigo-100 hover:bg-indigo-50"
-                      )}
-                    >
-                      {isSubscribed('performer', p.id) ? (
-                        <span className="flex items-center gap-1 font-semibold"><Check className="w-4 h-4" /> Following</span>
-                      ) : 'Follow'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Venues Section */}
-          <section>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
-              <MapPin className="w-5 h-5 text-orange-600" />
-              Follow Venues
-            </h2>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-                {venues.map(v => (
-                  <div key={v.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <div className="flex flex-col">
-                        <span className="font-medium text-gray-700">{v.name}</span>
-                        <span className="text-xs text-gray-400">{v.city}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          <div className="lg:col-span-8 space-y-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Performers Section */}
+              <section className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-indigo-50/30">
+                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                    <Music className="w-6 h-6 text-indigo-500" />
+                    Artists
+                  </h2>
+                  <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-indigo-500 border border-indigo-100 uppercase tracking-widest shadow-sm">
+                    {performers.length} Available
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto max-h-[500px] p-4 space-y-2">
+                  {performers.length === 0 && (
+                    <div className="py-20 text-center space-y-2">
+                      <Music className="w-10 h-10 text-slate-100 mx-auto" />
+                      <p className="text-slate-400 font-bold text-sm">No artists found in the system.</p>
                     </div>
-                    <button
-                      onClick={() => handleSubscribe('venue', v.id)}
-                      disabled={isSubscribed('venue', v.id)}
-                      className={cn(
-                        "text-sm px-4 py-1.5 rounded-full border transition-all",
-                        isSubscribed('venue', v.id)
-                          ? "bg-green-50 text-green-600 border-green-200"
-                          : "bg-white text-indigo-600 border-indigo-100 hover:bg-indigo-50"
-                      )}
-                    >
-                      {isSubscribed('venue', v.id) ? (
-                        <span className="flex items-center gap-1 font-semibold"><Check className="w-4 h-4" /> Following</span>
-                      ) : 'Follow'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* My Subscriptions List (Bottom) */}
-        <section className="mt-12">
-            <h2 className="text-lg font-semibold mb-4 text-gray-800 border-t pt-8">My active subscriptions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {subscriptions.length === 0 && (
-                    <div className="col-span-full py-12 text-center text-gray-400 italic">
-                        No active subscriptions. Follow some artists or venues to get started!
-                    </div>
-                )}
-                {subscriptions.map(sub => (
-                    <div key={sub.id} className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm flex items-center justify-between group">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                {sub.performer_id ? 'Performer' : 'Venue'}
-                            </span>
-                            <span className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
-                                {sub.performer?.name || sub.venue?.name}
-                            </span>
+                  )}
+                  {performers.map(p => (
+                    <div key={p.id} className="p-5 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100 group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-500 transition-colors">
+                          <Music className="w-5 h-5 font-bold" />
                         </div>
-                        <button 
-                            onClick={() => handleUnsubscribe(sub.id)}
-                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all"
-                            title="Remove subscription"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        <span className="font-bold text-slate-700">{p.name}</span>
+                      </div>
+                      <button
+                        onClick={() => handleSubscribe('performer', p.id)}
+                        disabled={isSubscribed('performer', p.id)}
+                        className={cn(
+                          "text-xs px-6 py-2.5 rounded-xl font-black uppercase tracking-widest transition-all",
+                          isSubscribed('performer', p.id)
+                            ? "bg-emerald-50 text-emerald-600 border border-emerald-100 pointer-events-none"
+                            : "bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:scale-105 active:scale-95"
+                        )}
+                      >
+                        {isSubscribed('performer', p.id) ? (
+                          <span className="flex items-center gap-2"><Check className="w-4 h-4 stroke-[3]" /> Added</span>
+                        ) : 'Follow'}
+                      </button>
                     </div>
-                ))}
+                  ))}
+                </div>
+              </section>
+
+              {/* Venues Section */}
+              <section className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-orange-50/20">
+                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                    <MapPin className="w-6 h-6 text-orange-500" />
+                    Venues
+                  </h2>
+                  <span className="bg-white px-3 py-1 rounded-full text-[10px] font-black text-orange-500 border border-orange-100 uppercase tracking-widest shadow-sm">
+                    {venues.length} Active
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto max-h-[500px] p-4 space-y-2">
+                  {venues.length === 0 && (
+                     <div className="py-20 text-center space-y-2">
+                        <MapPin className="w-10 h-10 text-slate-100 mx-auto" />
+                        <p className="text-slate-400 font-bold text-sm">No venues registered yet.</p>
+                      </div>
+                  )}
+                  {venues.map(v => (
+                    <div key={v.id} className="p-5 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100 group">
+                      <div className="flex flex-col">
+                          <span className="font-bold text-slate-700">{v.name}</span>
+                          <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 mt-1">{v.city}</span>
+                      </div>
+                      <button
+                        onClick={() => handleSubscribe('venue', v.id)}
+                        disabled={isSubscribed('venue', v.id)}
+                        className={cn(
+                          "text-xs px-6 py-2.5 rounded-xl font-black uppercase tracking-widest transition-all",
+                          isSubscribed('venue', v.id)
+                            ? "bg-emerald-50 text-emerald-600 border border-emerald-100 pointer-events-none"
+                            : "bg-orange-600 text-white shadow-lg shadow-orange-100 hover:scale-105 active:scale-95"
+                        )}
+                      >
+                         {isSubscribed('venue', v.id) ? (
+                          <span className="flex items-center gap-2"><Check className="w-4 h-4 stroke-[3]" /> Linked</span>
+                        ) : 'Link'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
-        </section>
+          </div>
+
+          {/* Sidebar: My Subscriptions */}
+          <div className="lg:col-span-4 h-fit sticky top-28">
+            <section className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none" />
+                
+                <h2 className="text-2xl font-black mb-6 flex items-center gap-3 relative">
+                    <Bell className="w-6 h-6 text-indigo-400" />
+                    My Alerts
+                </h2>
+
+                <div className="space-y-4 relative">
+                    {subscriptions.length === 0 && (
+                        <div className="py-12 px-6 rounded-3xl border-2 border-dashed border-slate-800 text-center">
+                            <p className="text-slate-500 text-sm leading-relaxed font-bold italic">
+                                "Subscribe to an artist to unlock personalized alerts."
+                            </p>
+                        </div>
+                    )}
+                    {subscriptions.map(sub => (
+                        <div key={sub.id} className="bg-slate-800/50 backdrop-blur-sm p-5 rounded-2xl border border-slate-700/50 flex items-center justify-between group animate-in fade-in slide-in-from-right-4">
+                            <div className="flex flex-col">
+                                <span className={cn(
+                                    "text-[9px] font-black uppercase tracking-[0.2em] mb-1.5",
+                                    sub.performer_id ? 'text-indigo-400' : 'text-orange-400'
+                                )}>
+                                    {sub.performer_id ? 'Performer' : 'Venue'}
+                                </span>
+                                <span className="text-sm font-black text-white truncate max-w-[150px]">
+                                    {sub.performer?.name || sub.venue?.name}
+                                </span>
+                            </div>
+                            <button 
+                                onClick={() => handleUnsubscribe(sub.id)}
+                                className="w-10 h-10 bg-slate-700 hover:bg-rose-500/20 hover:text-rose-500 text-slate-400 rounded-xl flex items-center justify-center transition-all group-hover:scale-110"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-10 p-5 bg-indigo-600 rounded-2xl flex items-center gap-4 relative">
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-xs font-bold leading-tight">
+                        You'll receive an email as soon as new dates are matched.
+                    </p>
+                </div>
+            </section>
+          </div>
+        </div>
       </div>
     </main>
   );
 }
+
 
