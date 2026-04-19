@@ -1,433 +1,301 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  Settings, Save, AlertCircle, CheckCircle2, RefreshCw, 
-  Globe, Terminal, Loader2, Plus, Trash2, ChevronRight, 
-  ChevronDown, Layout, Code2, Sparkles, Wand2
-} from 'lucide-react';
-import jsyaml from 'js-yaml';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Plus, 
+  Terminal, 
+  Database,
+  Cloud,
+  Loader2,
+  Search,
+  LayoutGrid,
+  Filter,
+  AlertCircle,
+  CheckCircle2
+} from 'lucide-react';
+import { VenueNode } from '@/components/VenueNode';
+import { AddVenueModal } from '@/components/AddVenueModal';
 
 export default function AdminDashboard() {
-  const [view, setView] = useState<'visual' | 'code'>('visual');
-  const [configContent, setConfigContent] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-  const [parsedConfig, setParsedConfig] = useState<any>({ venues: [] });
-  const [yamlError, setYamlError] = useState<string | null>(null);
+  const [venues, setVenues] = useState<any[]>([]);
+  const [originalVenues, setOriginalVenues] = useState<string>('[]');
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newVenue, setNewVenue] = useState({
+    venue_name: '',
+    start_url: '',
+    city: '',
+    province: '',
+    address: '',
+    selectors: { card: '', title: '', date: '', url: '' },
+    date_parsing: { format: '' },
+    performer_strategy: { split_by: [] }
+  });
 
   useEffect(() => {
-    fetchConfig();
+    fetchVenues();
   }, []);
 
-  const fetchConfig = async () => {
-    setIsLoading(true);
+  const fetchVenues = async () => {
     try {
-      // Step 1: Fetch all venues from the DB
-      const response = await fetch('http://localhost:8000/api/v1/venues');
-      const venues = await response.json();
-      
-      // Step 2: Update the local state
-      // Ensure venues is an array, default to empty list if not
-      setParsedConfig({ venues: Array.isArray(venues) ? venues : [] });
-      
-      // Step 3: Keep the code editor in sync (optional but helpful)
-      try {
-        const yaml = jsyaml.dump({ venues: Array.isArray(venues) ? venues : [] }, { indent: 2, noRefs: true });
-        setConfigContent(yaml);
-      } catch (e) {}
+      const resp = await fetch('http://localhost:8000/api/v1/venues/');
+      if (!resp.ok) throw new Error("Failed to fetch registry");
+      const data = await resp.json();
+      const venuesData = (Array.isArray(data) ? data : []).map(v => ({
+        ...v,
+        // Ensure consistent naming even if backend returns different keys
+        venue_name: v.venue_name || v.name,
+        start_url: v.start_url || v.website_url
+      }));
+      setVenues(venuesData);
+      setOriginalVenues(JSON.stringify(venuesData));
     } catch (err) {
-      setMessage({ text: 'Failed to connect to backend. Is the server running?', type: 'error' });
+      console.error(err);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const syncToYaml = (newParsed: any) => {
-    try {
-      const yaml = jsyaml.dump(newParsed, { indent: 2, noRefs: true });
-      setConfigContent(yaml);
-      setYamlError(null);
-      return yaml;
-    } catch (e: any) {
-      setYamlError(e.message);
-      return null;
-    }
+  const isDirty = useMemo(() => {
+    return JSON.stringify(venues) !== originalVenues;
+  }, [venues, originalVenues]);
+
+  const updateVenue = (idx: number, field: string, value: any) => {
+    setVenues(prev => {
+      const updated = JSON.parse(JSON.stringify(prev));
+      const target = updated[idx];
+      const path = field.split('.');
+      
+      if (path.length > 1) {
+        if (!target[path[0]]) target[path[0]] = {};
+        target[path[0]][path[1]] = value;
+      } else {
+        target[field] = value;
+      }
+      return updated;
+    });
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setMessage(null);
+  const saveAll = async () => {
+    if (!isDirty) return;
     try {
-      // Loop through all venues and update/create them in DB
-      const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
-      const savePromises = venues.map(async (v: any) => {
-        const payload = {
-          name: v.venue_name || v.name,
-          website_url: v.start_url || v.website_url,
-          scraper_config: v.selectors ? { selectors: v.selectors, performer_strategy: v.performer_strategy, date_parsing: v.date_parsing } : v.scraper_config,
-          is_active: v.is_active !== undefined ? v.is_active : true
+      setLoading(true);
+      const originalArray = JSON.parse(originalVenues);
+      
+      for (let i = 0; i < venues.length; i++) {
+        const venue = venues[i];
+        const original = originalArray.find((v: any) => v.id === venue.id);
+
+        if (original && JSON.stringify(venue) === JSON.stringify(original)) {
+          continue;
+        }
+
+        const payload: any = {
+          name: venue.venue_name,
+          website_url: venue.start_url,
+          city: venue.city,
+          province: venue.province,
+          address: venue.address,
         };
 
-        if (v.id) {
-          // Update
-          return fetch(`http://localhost:8000/api/v1/venues/${v.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        } else {
-          // Create
-          return fetch('http://localhost:8000/api/v1/venues', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
+        // Flatten nested config into what backend expects
+        if (venue.selectors || venue.date_parsing || venue.performer_strategy) {
+          payload.scraper_config = {
+            selectors: venue.selectors || (venue.scraper_config?.selectors),
+            date_parsing: venue.date_parsing || (venue.scraper_config?.date_parsing),
+            performer_strategy: venue.performer_strategy || (venue.scraper_config?.performer_strategy)
+          };
         }
+
+        const resp = await fetch(`http://localhost:8000/api/v1/venues/${venue.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+          const errData = await resp.json();
+          throw new Error(`Node ${venue.id} Sync Failed: ${JSON.stringify(errData.detail || errData)}`);
+        }
+      }
+      
+      alert("All clusters synchronized successfully.");
+      await fetchVenues();
+    } catch (err: any) {
+      alert(`Sync Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeVenue = async (idx: number) => {
+    const venue = venues[idx];
+    if (confirm(`Decommission node: ${venue.venue_name || venue.name}?`)) {
+      await fetch(`http://localhost:8000/api/v1/venues/${venue.id}`, { method: 'DELETE' });
+      fetchVenues();
+    }
+  };
+
+  const handleDeploy = async () => {
+    if (!newVenue.venue_name || !newVenue.start_url) return;
+    try {
+      setLoading(true);
+      const payload = {
+        name: newVenue.venue_name,
+        website_url: newVenue.start_url,
+        city: newVenue.city,
+        province: newVenue.province,
+        address: newVenue.address,
+        scraper_config: {
+          selectors: newVenue.selectors,
+          date_parsing: newVenue.date_parsing,
+          performer_strategy: newVenue.performer_strategy
+        }
+      };
+
+      const resp = await fetch('http://localhost:8000/api/v1/venues/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      await Promise.all(savePromises);
-      setMessage({ text: 'Nodes published to database successfully!', type: 'success' });
-      fetchConfig(); // Refresh data
+      if (!resp.ok) {
+        const errData = await resp.json();
+        throw new Error(JSON.stringify(errData.detail || errData));
+      }
+
+      setNewVenue({
+        venue_name: '',
+        start_url: '',
+        city: '',
+        province: '',
+        address: '',
+        selectors: { card: '', title: '', date: '', url: '' },
+        date_parsing: { format: '' },
+        performer_strategy: { split_by: [] }
+      });
+      setIsModalOpen(false);
+      await fetchVenues();
     } catch (err: any) {
-      setMessage({ text: err.message || 'Failed to save to database.', type: 'error' });
+      alert(`Deployment Failed: ${err.message}`);
     } finally {
-      setIsSaving(false);
+      setLoading(false);
     }
   };
 
-  const updateVenue = (index: number, field: string, value: any) => {
-    const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
-    const newVenues = [...venues];
-    const venue = newVenues[index];
-    
-    // Normalize fields for the UI
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      if (parent === 'selectors') {
-          if (!venue.selectors && venue.scraper_config?.selectors) venue.selectors = venue.scraper_config.selectors;
-          venue.selectors = { ...venue.selectors, [child]: value };
-      } else if (parent === 'performer_strategy') {
-          if (!venue.performer_strategy && venue.scraper_config?.performer_strategy) venue.performer_strategy = venue.scraper_config.performer_strategy;
-          venue.performer_strategy = { ...venue.performer_strategy, [child]: value };
-      } else if (parent === 'date_parsing') {
-          if (!venue.date_parsing && venue.scraper_config?.date_parsing) venue.date_parsing = venue.scraper_config.date_parsing;
-          venue.date_parsing = { ...venue.date_parsing, [child]: value };
-      }
-    } else {
-      if (field === 'venue_name') venue.name = value;
-      else if (field === 'start_url') venue.website_url = value;
-      else venue[field] = value;
-    }
-    
-    const newConfig = { ...parsedConfig, venues: newVenues };
-    setParsedConfig(newConfig);
-    if (view === 'visual') syncToYaml(newConfig);
-  };
-
-  const addVenue = () => {
-    const newVenue = {
-      name: "New Venue",
-      website_url: "https://",
-      scraper_config: {
-        selectors: { card: "", title: "", date: "", url: "" },
-        performer_strategy: { split_by: [" + ", " / "] },
-        date_parsing: { format: "" }
-      }
-    };
-    const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
-    const newConfig = { ...parsedConfig, venues: [...venues, newVenue] };
-    setParsedConfig(newConfig);
-    syncToYaml(newConfig);
-  };
-
-  const removeVenue = async (index: number) => {
-    const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
-    const venue = venues[index];
-    if (venue.id) {
-        if (!confirm('Are you sure you want to delete this venue from the database?')) return;
-        try {
-            await fetch(`http://localhost:8000/api/v1/venues/${venue.id}`, { method: 'DELETE' });
-        } catch (e) {}
-    }
-    const newVenues = venues.filter((_: any, i: number) => i !== index);
-    const newConfig = { ...parsedConfig, venues: newVenues };
-    setParsedConfig(newConfig);
-    syncToYaml(newConfig);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-            <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-4" />
-            <p className="text-slate-500 font-medium">Loading Scraper Studio...</p>
-        </div>
-      </div>
-    );
-  }
+  const filteredVenues = venues.filter(v => 
+    (v.venue_name || v.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.city || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Navigation Header */}
-      <nav className="bg-white border-b px-8 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="bg-indigo-600 p-2 rounded-xl shadow-indigo-200 shadow-lg">
-            <Wand2 className="w-6 h-6 text-white" />
+    <main className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-32">
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-2xl border-b border-slate-100">
+        <div className="max-w-[1600px] mx-auto px-12 h-24 flex items-center justify-between">
+          <div className="flex items-center gap-10">
+            <div className="flex items-center gap-4 group">
+              <div className="bg-indigo-600 p-3 rounded-2xl shadow-xl shadow-indigo-200 group-hover:rotate-12 transition-transform">
+                <Terminal className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-[1000] tracking-tight text-slate-900 font-sans leading-none">SCRAPER<span className="text-indigo-600">STUDIO</span></h1>
+                <p className="text-[10px] uppercase font-black tracking-[0.3em] text-slate-400 mt-1">Registry Management</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Scraper Studio</h1>
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest">Venue Configuration Node</p>
+          
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={saveAll}
+              disabled={!isDirty || loading}
+              className={`px-8 py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] transition-all shadow-xl flex items-center gap-3 ${
+                isDirty 
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 shadow-indigo-100' 
+                : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+              }`}
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
+              {isDirty ? 'Push Registry Changes' : 'Registry Up to Date'}
+            </button>
           </div>
-        </div>
-
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-           <button 
-             onClick={() => setView('visual')}
-             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${view === 'visual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-           >
-             <Layout className="w-4 h-4" /> Visual Builder
-           </button>
-           <button 
-             onClick={() => setView('code')}
-             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold transition-all ${view === 'code' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-           >
-             <Code2 className="w-4 h-4" /> YAML Editor
-           </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-            <button
-                onClick={fetchConfig}
-                className="p-2 text-slate-400 hover:text-indigo-600 transition-colors bg-slate-50 rounded-lg border"
-                title="Discard & Refresh"
-            >
-                <RefreshCw className="w-5 h-5" />
-            </button>
-            <button
-                onClick={handleSave}
-                disabled={isSaving || (view === 'code' && !!yamlError)}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl font-bold shadow-indigo-100 shadow-xl transition-all active:scale-95"
-            >
-                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Publish Nodes
-            </button>
         </div>
       </nav>
 
-      <div className="p-8 flex-1 max-w-7xl mx-auto w-full">
-        {message && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-8 p-4 rounded-2xl border flex items-center justify-between ${
-                message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-rose-50 border-rose-100 text-rose-800'
-            }`}
+      <div className="max-w-[1600px] mx-auto px-12 pt-16">
+        <div className="bg-white rounded-[3rem] p-8 border border-slate-100 shadow-sm mb-16 flex flex-col md:flex-row items-center gap-8">
+          <div className="flex items-center gap-8 border-r border-slate-100 pr-8">
+             <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Registered Clusters</span>
+                <span className="text-2xl font-black text-slate-900">{venues.length}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Database State</span>
+                <div className="flex items-center gap-2">
+                  {isDirty ? (
+                    <>
+                      <span className="text-[11px] font-black text-amber-500 uppercase tracking-wider">Unsaved Changes</span>
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[11px] font-black text-emerald-500 uppercase tracking-wider">Synchronized</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    </>
+                  )}
+                </div>
+              </div>
+          </div>
+
+          <div className="flex-1 relative group w-full">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+            <input 
+              type="text"
+              placeholder="Search registry by venue name, city or cluster ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border-2 border-slate-50 focus:border-indigo-500 focus:bg-white rounded-[1.5rem] pl-16 pr-8 py-4 text-sm font-bold outline-none transition-all"
+            />
+          </div>
+
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 hover:bg-black transition-all shadow-lg shadow-slate-100 whitespace-nowrap"
           >
-            <div className="flex items-center gap-3">
-                {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                <span className="font-semibold">{message.text}</span>
-            </div>
-            <button onClick={() => setMessage(null)} className="text-current opacity-50 hover:opacity-100 font-bold">✕</button>
-          </motion.div>
+            <Plus className="w-4 h-4" />
+            Deploy Node
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between mb-12 px-2">
+          <div className="flex items-center gap-4">
+             <div className="p-3 bg-slate-100 rounded-2xl"><LayoutGrid className="w-5 h-5 text-slate-500" /></div>
+             <h2 className="text-4xl font-[1000] text-slate-900 tracking-tighter">Node Registry</h2>
+          </div>
+        </div>
+
+        {loading && venues.length === 0 ? (
+          <div className="flex justify-center py-32"><Loader2 className="w-12 h-12 text-indigo-600 animate-spin" /></div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <AnimatePresence mode="popLayout">
+              {filteredVenues.map((venue, idx) => (
+                <VenueNode key={venue.id || idx} venue={venue} idx={idx} updateVenue={updateVenue} removeVenue={removeVenue} />
+              ))}
+            </AnimatePresence>
+          </div>
         )}
 
-        {view === 'visual' ? (
-          <div className="space-y-8 pb-20">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                    <Globe className="w-7 h-7 text-indigo-500" />
-                    Active Venues
-                    <span className="text-sm font-bold bg-slate-200 px-3 py-1 rounded-full text-slate-500 ml-2">
-                        {parsedConfig.venues?.length || 0}
-                    </span>
-                </h2>
-                <button 
-                    onClick={addVenue}
-                    className="flex items-center gap-2 bg-white text-indigo-600 border-2 border-indigo-50 hover:border-indigo-200 px-5 py-2 rounded-2xl font-bold transition-all shadow-sm"
-                >
-                    <Plus className="w-5 h-5" /> Add New Venue
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-                <AnimatePresence>
-                    {(Array.isArray(parsedConfig.venues) ? parsedConfig.venues : []).map((venue: any, idx: number) => (
-                        <motion.div 
-                            key={idx}
-                            layout
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden group hover:border-indigo-300 transition-all"
-                        >
-                            <div className="p-1 bg-indigo-50/50 flex items-center justify-between border-b">
-                                <div className="px-6 py-2 flex items-center gap-3">
-                                    <div className="bg-white p-1.5 rounded-lg border shadow-sm">
-                                        <Layout className="w-4 h-4 text-indigo-400" />
-                                    </div>
-                                    <input 
-                                        value={venue.venue_name || venue.name || ""}
-                                        onChange={(e) => updateVenue(idx, 'venue_name', e.target.value)}
-                                        className="bg-transparent font-black text-slate-800 outline-none text-lg focus:text-indigo-600 transition-colors"
-                                        placeholder="Venue Name"
-                                    />
-                                </div>
-                                <button 
-                                    onClick={() => removeVenue(idx)}
-                                    className="mr-6 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                                <section className="lg:col-span-7 space-y-6">
-                                    <label className="block">
-                                        <span className="text-xs font-black uppercase text-slate-400 mb-2 block tracking-widest">Entry Endpoint</span>
-                                        <div className="relative group">
-                                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                                            <input 
-                                                value={venue.start_url || venue.website_url || ""}
-                                                onChange={(e) => updateVenue(idx, 'start_url', e.target.value)}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 focus:border-indigo-100 focus:bg-white rounded-2xl pl-12 pr-6 py-3.5 text-slate-600 font-mono text-sm transition-all focus:ring-0 shadow-inner"
-                                                placeholder="https://example.com/agenda"
-                                            />
-                                        </div>
-                                    </label>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-4 shadow-sm">
-                                           <div>
-                                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter block mb-2">Performer Strategy</span>
-                                              <div className="flex flex-wrap gap-2 mb-1">
-                                                  {(venue.performer_strategy?.split_by || venue.scraper_config?.performer_strategy?.split_by || []).map((sep: string, sIdx: number) => (
-                                                      <div key={sIdx} className="group relative flex items-center bg-white border border-slate-200 rounded-lg pl-3 pr-1 py-1 text-slate-700 shadow-sm transition-all hover:border-indigo-300">
-                                                          <span className="font-mono text-[10px] font-bold">"{sep}"</span>
-                                                          <button 
-                                                            onClick={() => {
-                                                              const current = (venue.performer_strategy?.split_by || venue.scraper_config?.performer_strategy?.split_by || []);
-                                                              const newSeps = current.filter((_: any, i: number) => i !== sIdx);
-                                                              updateVenue(idx, 'performer_strategy.split_by', newSeps);
-                                                            }}
-                                                            className="ml-2 p-1 text-slate-300 hover:text-rose-500 rounded-md transition-colors"
-                                                          >
-                                                            <Trash2 className="w-3 h-3" />
-                                                          </button>
-                                                      </div>
-                                                  ))}
-                                                  <button 
-                                                    onClick={() => {
-                                                      const current = (venue.performer_strategy?.split_by || venue.scraper_config?.performer_strategy?.split_by || []);
-                                                      const s = prompt("Enter separator (e.g. ' & ')");
-                                                      if (s) updateVenue(idx, 'performer_strategy.split_by', [...current, s]);
-                                                    }}
-                                                    className="bg-indigo-600 text-white shadow-indigo-100 shadow-md border border-indigo-700 rounded-lg px-3 py-1 text-[10px] font-bold hover:bg-indigo-700 transition-colors"
-                                                  >
-                                                    + Add
-                                                  </button>
-                                              </div>
-                                           </div>
-
-                                           <div className="pt-4 border-t border-slate-200/60">
-                                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-tighter block mb-2">Date Masking</span>
-                                              <input 
-                                                value={venue.date_parsing?.format || venue.scraper_config?.date_parsing?.format || ''}
-                                                onChange={(e) => updateVenue(idx, 'date_parsing.format', e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-mono text-slate-700 placeholder:text-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 outline-none transition-all shadow-sm"
-                                                placeholder="e.g. %d %b %Y"
-                                              />
-                                              <p className="mt-1.5 text-[9px] text-slate-400 italic font-medium">Python strptime format (e.g. %d %m %Y)</p>
-                                           </div>
-                                        </div>
-                                        
-                                        <div className="p-5 bg-emerald-50/40 rounded-2xl border border-emerald-100 flex flex-col justify-center items-center text-center">
-                                           <div className="bg-white p-2.5 rounded-full shadow-sm border border-emerald-100 mb-3">
-                                                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                                           </div>
-                                           <span className="text-[10px] font-black uppercase text-emerald-600 tracking-tighter">Node Status</span>
-                                           <div className="mt-1 text-sm font-bold text-slate-700">
-                                                Ready to Scrape
-                                           </div>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section className="lg:col-span-5">
-                                    <div className="bg-slate-900 rounded-3xl p-5 relative h-full shadow-xl">
-                                        <div className="flex items-center gap-2 mb-4 text-indigo-400 border-b border-white/10 pb-4">
-                                            <Terminal className="w-4 h-4" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-white">DOM Selectors</span>
-                                        </div>
-                                        
-                                        <div className="space-y-3">
-                                            {[
-                                                { label: 'Card Container', field: 'card', placeholder: '.event-card' },
-                                                { label: 'Title Path', field: 'title', placeholder: 'h2 span' },
-                                                { label: 'Date Path', field: 'date', placeholder: 'time' },
-                                                { label: 'URL Target', field: 'url', placeholder: 'a (or "self")' },
-                                            ].map((item) => (
-                                                <div key={item.field} className="flex flex-col gap-1.5">
-                                                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">{item.label}</span>
-                                                    <input 
-                                                        value={venue.selectors?.[item.field] || venue.scraper_config?.selectors?.[item.field] || ""}
-                                                        onChange={(e) => updateVenue(idx, `selectors.${item.field}`, e.target.value)}
-                                                        className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-2 text-[11px] font-mono text-indigo-300 placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 transition-all shadow-inner"
-                                                        placeholder={item.placeholder}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col h-[calc(100vh-200px)] animate-in fade-in duration-500">
-            <div className="flex-1 bg-[#1e1e1e] rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col">
-              <div className="px-6 py-3 bg-[#252525] flex items-center justify-between border-b border-white/5">
-                <div className="flex gap-1.5">
-                   <div className="w-3 h-3 rounded-full bg-rose-500" />
-                   <div className="w-3 h-3 rounded-full bg-amber-500" />
-                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                </div>
-                <span className="text-xs font-mono text-slate-500">scraper_config.yaml</span>
-                <div className="w-10" />
-              </div>
-              <textarea
-                className="flex-1 p-8 font-mono text-sm bg-transparent text-slate-300 resize-none outline-none selection:bg-indigo-500/30 leading-relaxed"
-                spellCheck="false"
-                value={configContent}
-                onChange={(e) => {
-                    const val = e.target.value;
-                    setConfigContent(val);
-                    try {
-                        const parsed = jsyaml.load(val);
-                        setParsedConfig(parsed);
-                        setYamlError(null);
-                    } catch (e: any) {
-                        setYamlError(e.message);
-                    }
-                }}
-              />
-              {yamlError && (
-                <div className="p-6 bg-rose-950/30 border-t border-rose-900/50 flex flex-col gap-2">
-                    <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Syntax Alert</span>
-                    <span className="text-xs text-rose-200 font-mono">{yamlError}</span>
-                </div>
-              )}
-            </div>
+        {!loading && filteredVenues.length === 0 && (
+          <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+            <Search className="w-8 h-8 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-xl font-black text-slate-900">No clusters found</h3>
           </div>
         )}
       </div>
+
+      <AddVenueModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} newVenue={newVenue} setNewVenue={setNewVenue} onDeploy={handleDeploy} />
     </main>
   );
 }
-
-
