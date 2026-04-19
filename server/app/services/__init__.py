@@ -3,6 +3,8 @@ from .venue import (
     get_venue_by_name,
     get_all_venues,
     create_venue,
+    update_venue,
+    delete_venue,
 )
 from .performer import (
     get_performer_by_name,
