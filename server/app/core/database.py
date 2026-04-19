@@ -2,10 +2,20 @@ import os
 from sqlalchemy import Column, DateTime, Integer, create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.sql import func
+from dotenv import load_dotenv
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+# Load .env file
+load_dotenv()
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Simplified fallback for SQLite local path
+DEFAULT_DB = "sqlite:///c:/Users/Gebruiker/Desktop/BAP/poc-concert-notifications/server/data/app.db"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB)
+
+# Ensure path works for SQLite
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
