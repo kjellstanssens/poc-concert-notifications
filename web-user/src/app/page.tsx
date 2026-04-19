@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { apiService, Performer, Venue, User } from '@/lib/api';
-import { UserIcon, MapPin, Music, Bell, Check, Trash2, Loader2 } from 'lucide-react';
+import { UserIcon, MapPin, Music, Bell, Check, Trash2, Loader2, ArrowRight } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import Link from 'next/link';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -18,6 +19,19 @@ export default function Home() {
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for logged in user in localStorage
+    const savedEmail = localStorage.getItem('concert_user_email');
+    if (savedEmail) {
+        setEmail(savedEmail);
+        apiService.getOrCreateUser(savedEmail).then(u => {
+            setUser(u);
+        }).catch(err => {
+            console.error(err);
+        });
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -139,16 +153,27 @@ export default function Home() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Bell className="w-6 h-6 text-indigo-600" />
-              My Discovery Dashboard
+              Notifications Manager
             </h1>
-            <p className="text-gray-500 text-sm">Welcome back, {user.email}</p>
+            <p className="text-gray-500 text-sm">Follow artists and venues to receive email alerts</p>
           </div>
-          <button 
-            onClick={() => setUser(null)}
-            className="text-sm text-gray-400 hover:text-red-500 transition-colors"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-4">
+            <Link 
+                href="/discover" 
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-100 active:scale-95"
+            >
+                Live Discovery <ArrowRight className="w-4 h-4" />
+            </Link>
+            <button 
+                onClick={() => {
+                    localStorage.removeItem('concert_user_email');
+                    setUser(null);
+                }}
+                className="text-sm text-gray-400 hover:text-red-500 transition-colors"
+            >
+                Logout
+            </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

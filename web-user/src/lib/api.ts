@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -17,6 +17,15 @@ export interface Venue {
   name: string;
   address?: string;
   city?: string;
+}
+
+export interface Concert {
+  id: number;
+  title: string;
+  date: string;
+  url: string;
+  venue: Venue;
+  performers: Performer[];
 }
 
 export interface User {
@@ -39,6 +48,11 @@ export const apiService = {
 
   getVenues: async (): Promise<Venue[]> => {
     const response = await api.get('/venues/');
+    return response.data;
+  },
+
+  getConcerts: async (search?: string): Promise<Concert[]> => {
+    const response = await api.get('/concerts/', { params: search ? { q: search } : {} });
     return response.data;
   },
 

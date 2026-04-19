@@ -26,15 +26,16 @@ export default function AdminDashboard() {
     setIsLoading(true);
     try {
       // Step 1: Fetch all venues from the DB
-      const response = await fetch('http://localhost:8000/api/venues');
+      const response = await fetch('http://localhost:8000/api/v1/venues');
       const venues = await response.json();
       
       // Step 2: Update the local state
-      setParsedConfig({ venues });
+      // Ensure venues is an array, default to empty list if not
+      setParsedConfig({ venues: Array.isArray(venues) ? venues : [] });
       
       // Step 3: Keep the code editor in sync (optional but helpful)
       try {
-        const yaml = jsyaml.dump({ venues }, { indent: 2, noRefs: true });
+        const yaml = jsyaml.dump({ venues: Array.isArray(venues) ? venues : [] }, { indent: 2, noRefs: true });
         setConfigContent(yaml);
       } catch (e) {}
     } catch (err) {
@@ -61,7 +62,8 @@ export default function AdminDashboard() {
     setMessage(null);
     try {
       // Loop through all venues and update/create them in DB
-      const savePromises = parsedConfig.venues.map(async (v: any) => {
+      const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
+      const savePromises = venues.map(async (v: any) => {
         const payload = {
           name: v.venue_name || v.name,
           website_url: v.start_url || v.website_url,
@@ -71,14 +73,14 @@ export default function AdminDashboard() {
 
         if (v.id) {
           // Update
-          return fetch(`http://localhost:8000/api/venues/${v.id}`, {
+          return fetch(`http://localhost:8000/api/v1/venues/${v.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
         } else {
           // Create
-          return fetch('http://localhost:8000/api/venues', {
+          return fetch('http://localhost:8000/api/v1/venues', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -97,7 +99,8 @@ export default function AdminDashboard() {
   };
 
   const updateVenue = (index: number, field: string, value: any) => {
-    const newVenues = [...parsedConfig.venues];
+    const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
+    const newVenues = [...venues];
     const venue = newVenues[index];
     
     // Normalize fields for the UI
@@ -134,20 +137,22 @@ export default function AdminDashboard() {
         date_parsing: { format: "" }
       }
     };
-    const newConfig = { ...parsedConfig, venues: [...(parsedConfig.venues || []), newVenue] };
+    const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
+    const newConfig = { ...parsedConfig, venues: [...venues, newVenue] };
     setParsedConfig(newConfig);
     syncToYaml(newConfig);
   };
 
   const removeVenue = async (index: number) => {
-    const venue = parsedConfig.venues[index];
+    const venues = Array.isArray(parsedConfig.venues) ? parsedConfig.venues : [];
+    const venue = venues[index];
     if (venue.id) {
         if (!confirm('Are you sure you want to delete this venue from the database?')) return;
         try {
-            await fetch(`http://localhost:8000/api/venues/${venue.id}`, { method: 'DELETE' });
+            await fetch(`http://localhost:8000/api/v1/venues/${venue.id}`, { method: 'DELETE' });
         } catch (e) {}
     }
-    const newVenues = parsedConfig.venues.filter((_: any, i: number) => i !== index);
+    const newVenues = venues.filter((_: any, i: number) => i !== index);
     const newConfig = { ...parsedConfig, venues: newVenues };
     setParsedConfig(newConfig);
     syncToYaml(newConfig);
@@ -249,7 +254,7 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 gap-6">
                 <AnimatePresence>
-                    {parsedConfig.venues?.map((venue: any, idx: number) => (
+                    {(Array.isArray(parsedConfig.venues) ? parsedConfig.venues : []).map((venue: any, idx: number) => (
                         <motion.div 
                             key={idx}
                             layout
