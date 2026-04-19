@@ -9,10 +9,16 @@ from sqlalchemy.orm import Session
 sys.path.append(str(Path(__file__).parent))
 
 from app.core.database import SessionLocal
-from app.services import venue as venue_service
+from app.models.venue import Venue  # Changed from app.services
 from app.services import performer as performer_service
 from app.services import concert as concert_service
+from app.core.celery_app import celery_app
 from app.services.concert import process_scraped_items
+
+# Enable eager execution for testing/debugging
+celery_app.conf.task_always_eager = True
+celery_app.conf.task_eager_propagates = True
+
 from app import schemas
 from scraper.engine import ScraperEngine
 from scraper.config_models import VenueScraperConfig
@@ -27,25 +33,31 @@ def run():
     db = SessionLocal()
     engine = ScraperEngine()
     
-    config_path = Path(__file__).parent / "configs" / "scraper_config.yaml"
-    if not config_path.exists():
-        logger.error(f"Config file not found: {config_path}")
+    # Get all active venues from DB
+    active_venues = db.query(Venue).filter(Venue.is_active == True).all()
+    
+    if not active_venues:
+        logger.warning("No active venues found in database.")
         return
 
-    with open(config_path, "r") as f:
-        config_data = yaml.safe_load(f)
-        
-    for v_conf in config_data['venues']:
+    for venue in active_venues:
         try:
-            config = VenueScraperConfig(**v_conf)
-            venue = venue_service.get_venue_by_name(db, config.venue_name)
-            
-            if not venue:
-                logger.warning(f"Venue {config.venue_name} not found in DB. Skipping.")
+            if not venue.scraper_config:
+                logger.warning(f"Venue {venue.name} has no scraper_config. Skipping.")
                 continue
+
+            # Reconstruct the config object from DB JSON
+            # We map DB fields to the expected VenueScraperConfig structure
+            config_data = {
+                "venue_name": venue.name,
+                "start_url": venue.website_url,
+                **venue.scraper_config
+            }
+            
+            config = VenueScraperConfig(**config_data)
                 
             results = engine.scrape_venue(config)
-            logger.info(f"Scraped {len(results)} potential events from {config.venue_name}")
+            logger.info(f"Scraped {len(results)} potential events from {venue.name}")
             
             # Dispatch to Celery Worker for parallel processing
             if results:
@@ -53,17 +65,17 @@ def run():
                 serializable_results = []
                 for res in results:
                     item = res.copy()
-                    if isinstance(item['date'], datetime):
+                    if isinstance(item.get('date'), datetime):
                         item['date'] = item['date'].isoformat()
                     serializable_results.append(item)
                 
-                logger.info(f"Dispatching task for {config.venue_name}...")
+                logger.info(f"Dispatching task for {venue.name}...")
                 process_scraped_items.delay(venue.id, serializable_results)
             else:
-                logger.info(f"No results for {config.venue_name}")
+                logger.info(f"No results for {venue.name}")
 
         except Exception as e:
-            logger.error(f"Error processing venue {v_conf.get('venue_name', 'Unknown')}: {e}")
+            logger.error(f"Error processing venue {venue.name}: {e}")
 
     db.close()
 

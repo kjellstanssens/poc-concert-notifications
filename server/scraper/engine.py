@@ -107,7 +107,27 @@ class ScraperEngine:
             return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
         
         # Simple format parsing
-        return datetime.strptime(date_str, config.date_parsing.format)
+        # Try to parse only the beginning if there's trailing junk (common in scrapers)
+        try:
+            return datetime.strptime(date_str, config.date_parsing.format)
+        except ValueError as e:
+            # If "unconverted data remains", try to truncate the string to the expected length
+            if "unconverted data remains" in str(e):
+                logger.warning(f"Trailing data in date string '{date_str}' for format '{config.date_parsing.format}'. Trying fallback parsing.")
+                # Fallback: try to see if we can parse just the prefix that matches the format length
+                # This is a bit hacky but works for many fixed-width formats
+                # A better way is to iterate or use regex, but let's try a common trick:
+                # strptime doesn't have a 'partial' flag, but we can try to find the match within the string.
+                # Here we'll just try to parse the string by repeatedly shortening it from the right.
+                temp_str = date_str
+                while len(temp_str) > 2:
+                    try:
+                        temp_str = temp_str[:-1].strip()
+                        return datetime.strptime(temp_str, config.date_parsing.format)
+                    except ValueError:
+                        continue
+                raise e
+            raise e
 
     def _split_performers(self, title: str, strategy: PerformerStrategy) -> List[str]:
         performers = [title]
