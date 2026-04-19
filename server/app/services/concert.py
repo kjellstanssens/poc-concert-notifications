@@ -23,6 +23,11 @@ def process_scraped_items(venue_id: int, items: list):
         now = datetime.now()
 
         for item in items:
+            # Convert ISO string date back to datetime if needed
+            item_date = item["date"]
+            if isinstance(item_date, str):
+                item_date = datetime.fromisoformat(item_date)
+
             # Check if exists
             db_concert = get_concert_by_url(db, item["url"])
             
@@ -32,7 +37,7 @@ def process_scraped_items(venue_id: int, items: list):
                     # In a real app, you'd resolve performer_ids from names here
                     # For simplicity, we just update the core metadata
                     db_concert.title = item["title"]
-                    db_concert.date = item["date"]
+                    db_concert.date = item_date
                     db_concert.content_hash = item["content_hash"]
                     db_concert.status = "active"
                     db_concert.last_scraped_at = now
@@ -49,7 +54,7 @@ def process_scraped_items(venue_id: int, items: list):
                 new_concert = Concert(
                     title=item["title"],
                     url=item["url"],
-                    date=item["date"],
+                    date=item_date,
                     venue_id=venue_id,
                     content_hash=item["content_hash"],
                     status="active",
@@ -81,20 +86,30 @@ def get_concert_by_id(db: Session, concert_id: int):
         .where(Concert.id == concert_id)
     ).unique().scalar_one_or_none()
 
-def get_active_concerts(db: Session, skip: int = 0, limit: int = 100):
+def get_active_concerts(db: Session, skip: int = 0, limit: int = 100, search: str = None):
     """
-    Retrieve concerts where date >= now() AND is_active == True.
+    Retrieve concerts where date >= now() AND status == 'active'.
     Includes venue and performers using joinedload.
     """
-    return db.execute(
-        select(Concert)
-        .options(joinedload(Concert.venue), joinedload(Concert.performers))
-        .where(
-            and_(
-                Concert.date >= datetime.now(),
-                Concert.is_active == True
+    query = select(Concert).options(joinedload(Concert.venue), joinedload(Concert.performers))
+    
+    filters = [
+        Concert.date >= datetime.now(),
+        Concert.status == "active"
+    ]
+    
+    if search:
+        # Search in title or venue name
+        query = query.join(Concert.venue)
+        filters.append(
+            sa.or_(
+                Concert.title.ilike(f"%{search}%"),
+                Venue.name.ilike(f"%{search}%")
             )
         )
+        
+    return db.execute(
+        query.where(and_(*filters))
         .offset(skip)
         .limit(limit)
     ).scalars().unique().all()

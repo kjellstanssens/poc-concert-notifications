@@ -16,8 +16,9 @@ def get_db():
         db.close()
 
 @router.post("/", response_model=schemas.User)
-def get_or_create_user(email: str, db: Session = Depends(get_db)):
+def get_or_create_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     """Simple endpoint to identify/create a user by email."""
+    email = user_in.email
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
     if not user:
         user = User(email=email)

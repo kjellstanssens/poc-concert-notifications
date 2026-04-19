@@ -25,11 +25,12 @@ def read_concerts(
     skip: int = 0, 
     limit: int = 100, 
     active_only: bool = True,
+    q: str = Query(None, alias="q"),
     db: Session = Depends(get_db)
 ):
     """List concerts with optional filtering."""
     if active_only:
-        return services.get_active_concerts(db, skip=skip, limit=limit)
+        return services.get_active_concerts(db, skip=skip, limit=limit, search=q)
     return services.get_all_concerts(db, skip=skip, limit=limit)
 
 @router.get("/{concert_id}", response_model=schemas.Concert)

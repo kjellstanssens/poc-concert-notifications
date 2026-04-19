@@ -12,10 +12,51 @@ def seed_data():
         print("🌱 Growing the concert database...")
 
         venues = {
-            "ab": Venue(name="Ancienne Belgique", city="Brussels", province=Province.FLEMISH_BRABANT, 
-                        address="Anspachlaan 110", website_url="https://www.abconcerts.be"),
-            "trix": Venue(name="Trix", city="Antwerp", province=Province.ANTWERP, 
-                          address="Noordersingel 28", website_url="https://www.trixonline.be"),
+            "ab": Venue(
+                name="Ancienne Belgique", 
+                city="Brussels", 
+                province=Province.FLEMISH_BRABANT, 
+                address="Anspachlaan 110", 
+                website_url="https://www.abconcerts.be/en/agenda",
+                scraper_config={
+                    "selectors": {
+                        "card": ".content-card__list__row",
+                        "title": ".content-card__title",
+                        "date": ".content-card__media__label",
+                        "url": "a"
+                    },
+                    "date_parsing": {
+                        "type": "format",
+                        "format": "%a %d %b"
+                    },
+                    "performer_strategy": {
+                        "split_by": [" + ", " & ", " / "]
+                    }
+                }
+            ),
+            "trix": Venue(
+                name="Trix", 
+                city="Antwerp", 
+                province=Province.ANTWERP, 
+                address="Noordersingel 28", 
+                website_url="https://www.trixonline.be/en/program/",
+                scraper_config={
+                    "selectors": {
+                        "card": ".program-list__item",
+                        "title": ".program-list__artist",
+                        "date": "time",
+                        "url": "self"
+                    },
+                    "date_parsing": {
+                        "type": "format",
+                        "format": "%Y-%m-%d",
+                        "attr": "datetime"
+                    },
+                    "performer_strategy": {
+                        "split_by": [" + ", " / "]
+                    }
+                }
+            ),
             "vooruit": Venue(name="VIERNULVIER (Vooruit)", city="Ghent", province=Province.EAST_FLANDERS, 
                              address="Sint-Pietersnieuwstraat 23", website_url="https://www.viernulvier.gent"),
             "cactus": Venue(name="Cactus Club", city="Bruges", province=Province.WEST_FLANDERS, 
