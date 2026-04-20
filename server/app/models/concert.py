@@ -10,6 +10,7 @@ class Concert(Base):
     title = Column(String, nullable=False)
     date = Column(DateTime, nullable=False)
     price = Column(Float, nullable=True)
+    image_url = Column(String, nullable=True)
     url = Column(String, index=True, nullable=True) # Stable identifier (external_id)
     venue_id = Column(Integer, ForeignKey("venues.id"), nullable=False)
 

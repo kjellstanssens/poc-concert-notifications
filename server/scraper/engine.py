@@ -1,6 +1,9 @@
 import logging
 import urllib.robotparser
 import hashlib
+import json
+import re
+import html
 from typing import List, Dict, Any
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
@@ -51,8 +54,9 @@ class ScraperEngine:
                 title_sel = card.css(config.selectors.title)
                 if not title_sel:
                     continue
-                # Use get_all_text() to get combined text from nested elements (like <em>)
-                title = title_sel[0].get_all_text().strip()
+                # Use get_all_text() to get combined text from nested elements
+                # Clean up newlines and extra spaces (common in AB and others)
+                title = " ".join(title_sel[0].get_all_text().split()).strip()
 
                 date_sel = card.css(config.selectors.date)
                 if not date_sel:
@@ -80,18 +84,117 @@ class ScraperEngine:
                         if raw_url:
                             full_url = urljoin(str(config.start_url), raw_url.strip())
                 
+                # Image Handling (Safety: Always attempt if possible)
+                image_url = None
+                should_try_detail_img = (config.selectors.image == "DETAIL_IMG") or not config.selectors.image
+                
+                if should_try_detail_img and full_url:
+                    try:
+                        detail_resp = self.fetcher.get(full_url)
+                        og_img = detail_resp.css('meta[property="og:image"]')
+                        if og_img:
+                            image_url = og_img[0].attrib.get('content')
+                        
+                        if not image_url:
+                            img_detail = (
+                                detail_resp.css(".event-detail__header__info img") or 
+                                detail_resp.css(".event-detail__header img") or
+                                detail_resp.css(".program-detail__image img")
+                            )
+                            if img_detail:
+                                raw_img = img_detail[0].attrib.get('src') or img_detail[0].attrib.get('data-src')
+                                if raw_img:
+                                    image_url = urljoin(full_url, raw_img.strip())
+                    except Exception as e:
+                        logger.error(f"Failed to fetch detail image from {full_url}: {e}")
+
+                if not image_url and config.selectors.image and config.selectors.image != "DETAIL_IMG":
+                    img_sel = card.css(config.selectors.image)
+                    if img_sel:
+                        raw_img = img_sel[0].attrib.get('src') or img_sel[0].attrib.get('data-src') or img_sel[0].attrib.get('srcset')
+                        if raw_img:
+                            if ',' in raw_img:
+                                raw_img = raw_img.split(',')[0].strip().split(' ')[0]
+                            image_url = urljoin(str(config.start_url), raw_img.strip())
+
+                # Price Handling (Safety: Always attempt if empty)
+                price = None
+                should_try_detail_price = (config.selectors.price in ["DETAIL_PRICE", "LD_JSON"]) or not config.selectors.price
+                
+                if should_try_detail_price and full_url:
+                    try:
+                        detail_resp = self.fetcher.get(full_url)
+                        
+                        # Strategy: LD+JSON
+                        scripts = detail_resp.css('script[type="application/ld+json"]')
+                        for script in scripts:
+                            try:
+                                data = json.loads(script.get_all_text())
+                                objects = data if isinstance(data, list) else [data]
+                                for obj in objects:
+                                    if obj.get("@type") == "Event":
+                                        offers = obj.get("offers")
+                                        if isinstance(offers, list) and len(offers) > 0:
+                                            offers = offers[0]
+                                        if isinstance(offers, dict):
+                                            p_val = offers.get("price")
+                                            if p_val is not None:
+                                                price = float(str(p_val).replace(',', '.'))
+                                                break
+                                if price: break
+                            except: continue
+
+                        # Strategy: Regex on Detail Page Source
+                        if not price:
+                            # Use content of response
+                            content = detail_resp.text
+                            # Unescape and normalize spacing strictly
+                            source = html.unescape(content)
+                            source = source.replace('\u00a0', ' ').replace('&nbsp;', ' ')
+                            
+                            # Log first 500 chars of source for debugging in case of failure
+                            # logger.debug(f"Source sample: {source[:500]}")
+
+                            # AB Specific Logic: <dd>€ 26.4</dd>
+                            ab_match = re.search(r'€\s*([\d.]+)', source)
+                            if ab_match:
+                                try:
+                                    price = float(ab_match.group(1))
+                                except: pass
+                            
+                            # Trix Specific Logic: € 17,50
+                            if not price:
+                                trix_match = re.search(r'€\s*(\d+(?:,\d+)?)', source)
+                                if trix_match:
+                                    try:
+                                        price = float(trix_match.group(1).replace(',', '.'))
+                                    except: pass
+                    except Exception as e:
+                        logger.error(f"Failed detail price extraction from {full_url}: {e}")
+
+                # Fallback to selector if still no price
+                if not price and config.selectors.price and config.selectors.price not in ["DETAIL_PRICE", "LD_JSON"]:
+                    price_sel = card.css(config.selectors.price)
+                    if price_sel:
+                        price_text = price_sel[0].get_all_text().strip()
+                        price_match = re.search(r'(\d+(?:[.,]\d+)?)', price_text)
+                        if price_match:
+                            price = float(price_match.group(1).replace(',', '.'))
+
                 # Performers
                 performers = self._split_performers(title, config.performer_strategy)
                 
                 # Content Hash (Fingerprint)
                 # We hash title, date, performers to detect changes
-                content_str = f"{title}|{dt.isoformat()}|{sorted(performers)}"
+                content_str = f"{title}|{dt.isoformat()}|{sorted(performers)}|{price}|{image_url}"
                 content_hash = hashlib.md5(content_str.encode()).hexdigest()
 
                 scraped_data.append({
                     "title": title,
                     "date": dt,
                     "url": full_url,
+                    "image_url": image_url,
+                    "price": price,
                     "performers": performers,
                     "venue_name": config.venue_name,
                     "content_hash": content_hash

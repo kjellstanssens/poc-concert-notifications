@@ -7,6 +7,7 @@ class SelectorConfig(BaseModel):
     date: str
     url: Optional[str] = None
     price: Optional[str] = None
+    image: Optional[str] = None
 
 class DateParsingConfig(BaseModel):
     type: str  # "iso" or "format"

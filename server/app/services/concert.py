@@ -9,6 +9,48 @@ from app.models.performer import Performer
 from app.models.venue import Venue  # Added Venue model import
 from app import schemas
 from app.services.matcher import queue_notifications_for_concert
+import re
+
+def resolve_performers_from_title(db: Session, title: str) -> list[Performer]:
+    """
+    Extract performer names from a concert title and resolve them into Performer objects.
+    Uses common separators like '+', '/', '&', 'x'.
+    """
+    # Clean up the title (e.g. "Listening Session: Title")
+    cleaned_title = title
+    if ":" in title:
+        parts = title.split(":", 1)
+        # If the first part looks like a prefix, take the second part
+        if len(parts[0].split()) < 4:
+            cleaned_title = parts[1]
+
+    # Replace common separators with a standard one
+    separators = [r"\+", r"\b&\b", r"\bx\b", r"\band\b", r"/"]
+    pattern = "|".join(separators)
+    
+    # Split and clean names
+    raw_names = re.split(pattern, cleaned_title, flags=re.IGNORECASE)
+    names = [name.strip() for name in raw_names if name.strip()]
+
+    # If splitting resulted in no names or empty strings, fallback to the full title
+    if not names:
+        names = [title.strip()]
+
+    performers = []
+    for name in names:
+        # Check if exists
+        performer = db.execute(
+            select(Performer).where(Performer.name == name)
+        ).scalar_one_or_none()
+
+        if not performer:
+            performer = Performer(name=name)
+            db.add(performer)
+            db.flush()  # Get ID
+        
+        performers.append(performer)
+    
+    return performers
 
 @celery_app.task(name="app.services.concert.process_scraped_items")
 def process_scraped_items(venue_id: int, items: list):
@@ -34,10 +76,14 @@ def process_scraped_items(venue_id: int, items: list):
             if db_concert:
                 # Potential update
                 if db_concert.content_hash != item["content_hash"]:
-                    # In a real app, you'd resolve performer_ids from names here
-                    # For simplicity, we just update the core metadata
+                    # Resolve performers from title
+                    performers = resolve_performers_from_title(db, item["title"])
+                    db_concert.performers = performers
+
                     db_concert.title = item["title"]
                     db_concert.date = item_date
+                    db_concert.image_url = item.get("image_url")
+                    db_concert.price = item.get("price")
                     db_concert.content_hash = item["content_hash"]
                     db_concert.status = "active"
                     db_concert.last_scraped_at = now
@@ -49,17 +95,21 @@ def process_scraped_items(venue_id: int, items: list):
                     db_concert.last_scraped_at = now
             else:
                 # Create new
-                # In a real app, resolve venue/performers
-                # This is a simplified version for the POC demo
+                # Resolve performers from title
+                performers = resolve_performers_from_title(db, item["title"])
+
                 new_concert = Concert(
                     title=item["title"],
                     url=item["url"],
+                    image_url=item.get("image_url"),
+                    price=item.get("price"),
                     date=item_date,
                     venue_id=venue_id,
                     content_hash=item["content_hash"],
                     status="active",
                     last_scraped_at=now
                 )
+                new_concert.performers = performers # Link performers
                 db.add(new_concert)
                 db.flush() # Get ID
                 queue_notifications_for_concert(db, new_concert.id, "new")

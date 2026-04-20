@@ -8,6 +8,7 @@ class ConcertBase(BaseModel):
     title: str
     date: datetime
     price: Optional[float] = None
+    image_url: Optional[str] = None
     url: Optional[str] = None
     content_hash: Optional[str] = None
     status: str = "active"
