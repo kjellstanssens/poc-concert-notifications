@@ -62,12 +62,21 @@ export const apiService = {
     return response.data;
   },
 
-  subscribeToPerformer: async (userId: number, performerId: number) => {
-    return api.post('/subscriptions/performer', { user_id: userId, performer_id: performerId });
+  subscribeToPerformer: async (userId: number, performerId: number, options?: { venue_id?: number, province?: string }) => {
+    return api.post('/subscriptions/performer', { 
+      user_id: userId, 
+      performer_id: performerId,
+      venue_id: options?.venue_id,
+      province: options?.province
+    });
   },
 
   subscribeToVenue: async (userId: number, venueId: number) => {
     return api.post('/subscriptions/venue', { user_id: userId, venue_id: venueId });
+  },
+
+  subscribeToProvince: async (userId: number, province: string) => {
+    return api.post('/subscriptions/province', { user_id: userId, province });
   },
 
   unsubscribe: async (subscriptionId: number) => {

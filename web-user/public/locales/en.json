@@ -1,0 +1,70 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "search": "Search...",
+    "loading": "Loading...",
+    "create": "Create",
+    "edit": "Edit",
+    "deploy": "Deploy",
+    "add": "Add",
+    "remove": "Remove",
+    "close": "Close",
+    "confirm": "Confirm"
+  },
+  "nav": {
+    "alerts": "Alerts",
+    "discover": "Discover",
+    "artists": "Artists",
+    "venues": "Venues",
+    "admin": "Admin"
+  },
+  "alerts": {
+    "title": "My Alerts",
+    "subtitle": "Manage notifications for your favorite artists and venues.",
+    "createButton": "Create Alert",
+    "emptyState": {
+      "title": "No active alerts",
+      "description": "You haven't set up any notifications yet. Add an alert to stay informed about new events.",
+      "step1": "Choose an artist, venue, or region",
+      "step2": "Get notified when a new event matches"
+    },
+    "list": {
+      "targetArtist": "Artist Watch",
+      "targetVenue": "Venue Watch",
+      "targetRegion": "Region Watch",
+      "statusMonitoring": "Monitoring",
+      "filterPrefix": "Only at"
+    },
+    "modal": {
+      "title": "New Alert",
+      "subtitle": "Set up a notification",
+      "searchPlaceholder": "Search for an artist, venue, or region...",
+      "sectionPerformers": "Artists",
+      "sectionVenues": "Venues",
+      "sectionRegions": "Regions",
+      "noResults": "No results found matching your search.",
+      "configuration": "Alert Configuration",
+      "targetLabel": "Alert Target",
+      "venueFilter": "Filter by Venue",
+      "regionFilter": "Filter by Region",
+      "anyVenue": "Any Venue",
+      "anyRegion": "Any Region",
+      "missingCriteriaWarning": "Please select at least one criteria to create an alert.",
+      "globalWarning": "This will monitor all events matching these criteria.",
+      "submitButton": "Save Alert"
+    },
+    "watcher": {
+      "title": "Real-time Monitoring",
+      "description": "Background checks run periodically across our verified sources.",
+      "settings": "Settings"
+    }
+  },
+  "discover": {
+    "title": "Discover Events",
+    "subtitle": "Explore upcoming events across different venues.",
+    "search": "Search events...",
+    "totalFound": "Total Found:"
+  }
+}

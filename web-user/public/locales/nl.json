@@ -1,0 +1,70 @@
+{
+  "common": {
+    "cancel": "Annuleren",
+    "save": "Opslaan",
+    "delete": "Verwijderen",
+    "search": "Zoeken...",
+    "loading": "Laden...",
+    "create": "Aanmaken",
+    "edit": "Bewerken",
+    "deploy": "Uitrollen",
+    "add": "Toevoegen",
+    "remove": "Verwijderen",
+    "close": "Sluiten",
+    "confirm": "Bevestigen"
+  },
+  "nav": {
+    "alerts": "Meldingen",
+    "discover": "Ontdekken",
+    "artists": "Artiesten",
+    "venues": "Locaties",
+    "admin": "Beheerder"
+  },
+  "alerts": {
+    "title": "Mijn Meldingen",
+    "subtitle": "Beheer notificaties voor je favoriete artiesten en locaties.",
+    "createButton": "Melding Aanmaken",
+    "emptyState": {
+      "title": "Geen actieve meldingen",
+      "description": "Je hebt nog geen notificaties ingesteld. Voeg een melding toe om op de hoogte te blijven van nieuwe evenementen.",
+      "step1": "Kies een artiest, locatie of regio",
+      "step2": "Krijg bericht wanneer een nieuw evenement overeenkomt"
+    },
+    "list": {
+      "targetArtist": "Artiest volgen",
+      "targetVenue": "Locatie volgen",
+      "targetRegion": "Regio volgen",
+      "statusMonitoring": "Analyseren",
+      "filterPrefix": "Alleen in"
+    },
+    "modal": {
+      "title": "Nieuwe Melding",
+      "subtitle": "Stel een notificatie in",
+      "searchPlaceholder": "Zoek naar een artiest, locatie of regio...",
+      "sectionPerformers": "Artiesten",
+      "sectionVenues": "Locaties",
+      "sectionRegions": "Regio's",
+      "noResults": "Geen resultaten gevonden voor uw zoekopdracht.",
+      "configuration": "Melding Configuratie",
+      "targetLabel": "Doel van melding",
+      "venueFilter": "Filter op Locatie",
+      "regionFilter": "Filter op Regio",
+      "anyVenue": "Elke Locatie",
+      "anyRegion": "Elke Regio",
+      "missingCriteriaWarning": "Selecteer minimaal één criterium om een melding te maken.",
+      "globalWarning": "Dit zal alle evenementen monitoren die overeenkomen met deze criteria.",
+      "submitButton": "Melding Opslaan"
+    },
+    "watcher": {
+      "title": "Realtime Monitoring",
+      "description": "Achtergrondcontroles worden regelmatig uitgevoerd over onze geverifieerde bronnen.",
+      "settings": "Instellingen"
+    }
+  },
+  "discover": {
+    "title": "Ontdek Evenementen",
+    "subtitle": "Verken aankomende evenementen op verschillende locaties.",
+    "search": "Zoek evenementen...",
+    "totalFound": "Totaal Gevonden:"
+  }
+}
