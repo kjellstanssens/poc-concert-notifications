@@ -235,6 +235,7 @@ export const VenueNode = ({ venue, idx, updateVenue, removeVenue }: VenueNodePro
                                 { label: 'Event Title', field: 'title', icon: Terminal },
                                 { label: 'Event Date', field: 'date', icon: Calendar },
                                 { label: 'Direct URL', field: 'url', icon: ExternalLink },
+                                { label: 'Event Image', field: 'image', icon: Globe },
                             ].map((item) => (
                                 <div key={item.field} className="space-y-3">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2 ml-1">

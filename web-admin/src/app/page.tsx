@@ -29,7 +29,7 @@ export default function AdminDashboard() {
     city: '',
     province: '',
     address: '',
-    selectors: { card: '', title: '', date: '', url: '' },
+    selectors: { card: '', title: '', date: '', url: '', image: '' },
     date_parsing: { format: '' },
     performer_strategy: { split_by: [] }
   });

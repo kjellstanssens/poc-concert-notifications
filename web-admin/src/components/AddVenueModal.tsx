@@ -150,8 +150,7 @@ export const AddVenueModal = ({ isOpen, onClose, newVenue, setNewVenue, onDeploy
                         { label: 'Cluster Container', field: 'card', icon: Database },
                         { label: 'Identifier (Title)', field: 'title', icon: Terminal },
                         { label: 'Temporal Node (Date)', field: 'date', icon: Calendar },
-                        { label: 'Actionable URI', field: 'url', icon: ExternalLink },
-                      ].map((item) => (
+                        { label: 'Actionable URI', field: 'url', icon: ExternalLink },                      { label: 'Event Cover Image', field: 'image', icon: Globe },                      ].map((item) => (
                         <div key={item.field} className="space-y-3">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-2">
                              <item.icon className="w-3 h-3" /> {item.label}
