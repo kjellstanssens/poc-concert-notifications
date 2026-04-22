@@ -17,6 +17,8 @@ import {
 import { VenueNode } from '@/components/VenueNode';
 import { AddVenueModal } from '@/components/AddVenueModal';
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000') + '/api/v1';
+
 export default function AdminDashboard() {
   const [venues, setVenues] = useState<any[]>([]);
   const [originalVenues, setOriginalVenues] = useState<string>('[]');
@@ -40,7 +42,7 @@ export default function AdminDashboard() {
 
   const fetchVenues = async () => {
     try {
-      const resp = await fetch('http://localhost:8000/api/v1/venues/');
+      const resp = await fetch(`${API_BASE_URL}/venues/`);
       if (!resp.ok) throw new Error("Failed to fetch registry");
       const data = await resp.json();
       const venuesData = (Array.isArray(data) ? data : []).map(v => ({
@@ -63,7 +65,7 @@ export default function AdminDashboard() {
   }, [venues, originalVenues]);
 
   const updateVenue = (idx: number, field: string, value: any) => {
-    setVenues(prev => {
+    setVenues((prev: any[]) => {
       const updated = JSON.parse(JSON.stringify(prev));
       const target = updated[idx];
       const path = field.split('.');
@@ -109,7 +111,7 @@ export default function AdminDashboard() {
           };
         }
 
-        const resp = await fetch(`http://localhost:8000/api/v1/venues/${venue.id}`, {
+        const resp = await fetch(`${API_BASE_URL}/venues/${venue.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -133,7 +135,7 @@ export default function AdminDashboard() {
   const removeVenue = async (idx: number) => {
     const venue = venues[idx];
     if (confirm(`Decommission node: ${venue.venue_name || venue.name}?`)) {
-      await fetch(`http://localhost:8000/api/v1/venues/${venue.id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/venues/${venue.id}`, { method: 'DELETE' });
       fetchVenues();
     }
   };
@@ -155,7 +157,7 @@ export default function AdminDashboard() {
         }
       };
 
-      const resp = await fetch('http://localhost:8000/api/v1/venues/', {
+      const resp = await fetch(`${API_BASE_URL}/venues/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -172,7 +174,7 @@ export default function AdminDashboard() {
         city: '',
         province: '',
         address: '',
-        selectors: { card: '', title: '', date: '', url: '' },
+        selectors: { card: '', title: '', date: '', url: '', image: '' },
         date_parsing: { format: '' },
         performer_strategy: { split_by: [] }
       });
@@ -185,7 +187,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredVenues = venues.filter(v => 
+  const filteredVenues = venues.filter((v: any) => 
     (v.venue_name || v.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (v.city || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
