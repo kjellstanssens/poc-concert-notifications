@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.associationproxy import association_proxy
 from datetime import datetime
 from app.core.database import Base
 import app.models.notification # Ensure NotificationQueue is registered
@@ -15,3 +16,7 @@ class User(Base):
     # Relationships
     subscriptions = relationship("Subscription", back_populates="user")
     pending_notifications = relationship("NotificationQueue", back_populates="user")
+
+    # Relationship Automation: Get subscribed venue IDs and performer IDs directly
+    subscribed_venue_ids = association_proxy("subscriptions", "venue_id")
+    subscribed_performer_ids = association_proxy("subscriptions", "performer_id")

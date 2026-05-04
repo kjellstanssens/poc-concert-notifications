@@ -237,8 +237,9 @@ def create_concert(db: Session, concert_in: schemas.ConcertCreate):
     if not venue:
         raise ValueError(f"Venue with id {concert_in.venue_id} does not exist")
 
-    # model_dump(mode="json") handles datetime/url conversion for SQLAlchemy
-    obj_in_data = concert_in.model_dump(exclude={"performer_ids"}, mode="json")
+    # model_dump() keeps native Python types like datetime
+    # SQLite/SQLAlchemy handle these types correctly
+    obj_in_data = concert_in.model_dump(exclude={"performer_ids"})
     db_obj = Concert(**obj_in_data)
     
     if concert_in.performer_ids:

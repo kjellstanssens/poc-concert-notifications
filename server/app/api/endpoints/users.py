@@ -2,18 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import List
-from app.core.database import SessionLocal
+from app.core.database import get_db
 from app.models.user import User
 from app import schemas
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("/", response_model=schemas.User)
 def get_or_create_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):

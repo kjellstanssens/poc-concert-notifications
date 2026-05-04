@@ -10,6 +10,10 @@ from app.models.performer import Performer
 from app.models.venue import Venue as VenueModel
 from app.core.database import SessionLocal
 
+@pytest.fixture
+def anyio_backend():
+    return 'asyncio'
+
 @pytest.fixture(scope="function")
 def db_session():
     """Provides a transactional database session for each test that rolls back."""

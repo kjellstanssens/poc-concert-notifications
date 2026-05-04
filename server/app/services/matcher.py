@@ -53,9 +53,7 @@ def process_daily_digests():
 def queue_notifications_for_concert(db: Session, concert_id: int, notification_type: str):
     """
     Finds all users who should be notified for this concert and queues a notification.
-    A user is notified if they have a subscription to:
-    1. The venue of the concert
-    2. Any of the performers in the concert
+    Uses the Subscription model's encapsulated logic.
     """
     concert = db.execute(
         select(Concert).where(Concert.id == concert_id)
@@ -64,17 +62,8 @@ def queue_notifications_for_concert(db: Session, concert_id: int, notification_t
     if not concert:
         return
 
-    # Find subscriptions matching venue OR performers
-    performer_ids = [p.id for p in concert.performers]
-    
-    stmt = select(Subscription.user_id).where(
-        or_(
-            Subscription.venue_id == concert.venue_id,
-            Subscription.performer_id.in_(performer_ids) if performer_ids else False
-        )
-    ).distinct()
-    
-    user_ids = db.execute(stmt).scalars().all()
+    # Call the encapsulated matching logic using the new property
+    user_ids = Subscription.find_matching_users(db, concert.venue_id, concert.performer_ids)
     
     for u_id in user_ids:
         # Check if already in queue for this concert (avoid duplicates in same 24h batch)

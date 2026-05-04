@@ -2,18 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import List, Optional
-from app.core.database import SessionLocal
+from app.core.database import get_db
 from app.models.subscription import Subscription
 from app.models.user import User
 
 router = APIRouter()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("/performer")
 def subscribe_to_performer(
